@@ -10,7 +10,7 @@ lerna-debug.log*
 node_modules
 .env
 #dist
-build
+#build
 .DS_Store
 dist-ssr
 *.local
