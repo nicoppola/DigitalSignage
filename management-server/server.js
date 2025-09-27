@@ -84,6 +84,17 @@ app.delete('/api/files', (req, res) => {
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+app.get('/viewer', (req, res) => {
+  res.sendFile(path.join(__dirname, '../viewer/viewer.html'));
+});
+
+// Serve React build static files
+app.use(express.static(path.join(__dirname, 'management-app', 'dist')));
+
+// React SPA fallback — serve index.html on unmatched routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'management-app', 'dist', 'index.html'));
+});
 
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`)
