@@ -102,7 +102,7 @@ function FileList({ folderName, refreshTrigger }) {
                     onClick={(e) => e.stopPropagation()} // prevent label click toggling twice
                   />
                   <img
-                    src={`http://localhost:4000/uploads/${folderName}/${file}`}
+                    src={`/uploads/${folderName}/${file}`}
                     alt={file}
                     style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 4, marginBottom: 6 }}
                   />
