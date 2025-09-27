@@ -89,11 +89,11 @@ app.get('/viewer', (req, res) => {
 });
 
 // Serve React build static files
-app.use(express.static(path.join(__dirname, 'management-app', 'dist')));
+app.use(express.static(path.join(__dirname, '../management-app', 'dist')));
 
 // React SPA fallback — serve index.html on unmatched routes
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'management-app', 'dist', 'index.html'));
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../management-app', 'dist', 'index.html'));
 });
 
 app.listen(PORT, () => {
