@@ -11,6 +11,11 @@ app.use(cors())
 
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // Helper: sanitize folder and file names to prevent path traversal
 function sanitizeName(name) {
   return name.replace(/[^a-zA-Z0-9-_]/g, '');

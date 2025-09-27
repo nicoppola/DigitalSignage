@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Image Viewer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      background-color: black;
+      color: white;
+      font-family: sans-serif;
+      overflow: hidden;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    .panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      background-color: black;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .panel img {
+      max-width: 100%;
+      height: auto;
+      margin-bottom: 10px;
+      display: none;
+    }
+
+    .panel img.active {
+      display: block;
+    }
+
+    .message {
+      color: gray;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="left-panel" class="panel"></div>
+    <div id="right-panel" class="panel"></div>
+  </div>
+
+  <script>
+    // CONFIGURATION
+    const config = {
+      leftSide: {
+        rotateIntervalSec: 5,      // rotate image every 5 seconds on left
+        refreshIntervalSec: 60,    // check for new photos every 60 seconds on left
+      },
+      rightSide: {
+        rotateIntervalSec: 15,      // rotate image every 7 seconds on right
+        refreshIntervalSec: 90,    // check for new photos every 90 seconds on right
+      }
+    };
+
+    // STATE
+    const state = {
+      "left-side": { images: [], currentIndex: 0, rotateTimer: null, refreshTimer: null },
+      "right-side": { images: [], currentIndex: 0, rotateTimer: null, refreshTimer: null },
+    };
+
+    async function fetchImages(folder) {
+      try {
+        const response = await fetch(`/api/files?folder=${folder}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (!data.files || data.files.length === 0) return [];
+        return data.files;
+      } catch (err) {
+        console.warn(`Could not load folder "${folder}":`, err);
+        return [];
+      }
+    }
+
+    function showImage(folder) {
+      const container = document.getElementById(folder === "left-side" ? "left-panel" : "right-panel");
+      container.innerHTML = ""; // clear previous images
+
+      const images = state[folder].images;
+      if (images.length === 0) {
+        container.innerHTML = `<div class="message"></div>`; // blank black panel, no message
+        return;
+      }
+
+      images.forEach((file, idx) => {
+        const img = document.createElement("img");
+        img.src = `/uploads/${folder}/${file}`;
+        if (idx === state[folder].currentIndex) img.classList.add("active");
+        container.appendChild(img);
+      });
+    }
+
+    function rotateImage(folder) {
+      const images = state[folder].images;
+      if (images.length === 0) return;
+
+      state[folder].currentIndex = (state[folder].currentIndex + 1) % images.length;
+      showImage(folder);
+    }
+
+    async function refreshImages(folder) {
+      const oldImages = state[folder].images;
+      const newImages = await fetchImages(folder);
+
+      // Only update if changed
+      if (JSON.stringify(oldImages) !== JSON.stringify(newImages)) {
+        state[folder].images = newImages;
+        state[folder].currentIndex = 0;
+        showImage(folder);
+      }
+    }
+
+    async function startPanel(folder, rotateIntervalSec, refreshIntervalSec) {
+      // Initial load
+      state[folder].images = await fetchImages(folder);
+      showImage(folder);
+
+      // Set up rotation timer
+      state[folder].rotateTimer = setInterval(() => rotateImage(folder), rotateIntervalSec * 1000);
+
+      // Set up refresh timer
+      state[folder].refreshTimer = setInterval(() => refreshImages(folder), refreshIntervalSec * 1000);
+    }
+
+    // Start both panels with their configured intervals
+    startPanel("left-side", config.leftSide.rotateIntervalSec, config.leftSide.refreshIntervalSec);
+    startPanel("right-side", config.rightSide.rotateIntervalSec, config.rightSide.refreshIntervalSec);
+  </script>
+</body>
+</html>
