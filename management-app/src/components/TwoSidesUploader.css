@@ -1,0 +1,115 @@
+/* Global Styles */
+body {
+  font-family: 'Roboto', sans-serif;
+  background-color: #000000;
+  color: #FFFFFF;
+  margin: 0;
+  padding: 0;
+}
+
+/* Container for the two uploaders */
+.container {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+  gap: 20px;
+}
+
+/* Individual uploader sections */
+.side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 85%;
+  background-color: #212121;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Title for each uploader */
+.side h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px;
+  color: #D32F2F;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* Drop zone styling */
+.drop-zone {
+  border: 2px dashed #757575;
+  border-radius: 8px;
+  padding: 30px;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.drop-zone:hover {
+  background-color: #333333;
+}
+
+
+/* Preview section */
+.preview-section {
+  display: flex;
+  flex-wrap: wrap; /* allows multiple rows if too many files */
+  gap: 15px; /* space between preview items */
+}
+
+.preview-wrapper {
+  display: flex;
+  flex-direction: column; /* stack image + filename vertically */
+  align-items: center;
+  width: 80px; /* fix width to keep consistent size */
+}
+
+.preview-wrapper img {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.file-name {
+  font-size: 14px;
+  color: #BDBDBD;
+}
+
+.remove-btn {
+  background-color: transparent;
+  border: none;
+  color: #D32F2F;
+  font-size: 16px;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.remove-btn:hover {
+  color: #FF5722;
+}
+
+/* Upload button */
+.upload-btn {
+  width: 100%;
+  padding: 10px;
+  background-color: #D32F2F;
+  border: none;
+  border-radius: 4px;
+  color: #FFFFFF;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.upload-btn:hover {
+  background-color: #C2185B;
+}
