@@ -10,7 +10,7 @@ const TwoSidesUploader = () => {
   const [rightRefresh, setRightRefresh] = useState(0);
 
   return (
-    <div className="container">
+    <div className="container side-container">
       {/* Left Column */}
       <div>
         <div className="side">

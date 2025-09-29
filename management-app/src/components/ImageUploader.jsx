@@ -102,22 +102,30 @@ const ImageUploader = ({ folderName = 'default-folder', onUploadComplete = {} })
         <div className="preview-section">
           <h3>Preview</h3>
           <div className="previews">
-            {previewUrls.map((url, i) => (
-              <div key={i} className="preview-wrapper">
-                <img src={url} alt={`preview ${i}`} />
-                <div className="file-info">
-                  <span className="file-name">{files[i]?.name}</span>
-                  <button
-                    className="remove-btn"
-                    onClick={() => handleRemove(i)}
-                    aria-label={`Remove ${files[i]?.name}`}
-                  >
-                    ❌
-                  </button>
-                </div>
+            {Array.from({ length: Math.ceil(previewUrls.length / 3) }).map((_, rowIndex) => (
+              <div className="preview-row" key={rowIndex} style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+                {previewUrls.slice(rowIndex * 3, rowIndex * 3 + 3).map((url, i) => {
+                  const actualIndex = rowIndex * 3 + i;
+                  return (
+                    <div key={actualIndex} className="preview-wrapper" style={{ flex: '1', maxWidth: '120px' }}>
+                      <img src={url} alt={`preview ${actualIndex}`} style={{ width: '100%' }} />
+                      <div className="file-info" style={{ textAlign: 'center', marginTop: '4px' }}>
+                        <span className="file-name">{files[actualIndex]?.name}</span>
+                        <button
+                          className="remove-btn"
+                          onClick={() => handleRemove(actualIndex)}
+                          aria-label={`Remove ${files[actualIndex]?.name}`}
+                        >
+                          ❌
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </div>
+
           <button className="upload-btn" onClick={handleUpload}>Upload</button>
         </div>
       )}
