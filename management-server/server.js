@@ -51,13 +51,13 @@ function requireLogin(req, res, next) {
   const clientIp = req.ip || req.connection.remoteAddress;
 
   // Allow localhost (IPv4 and IPv6)
-  // if (
-  //   clientIp === '::1' ||     // IPv6 localhost
-  //   clientIp === '127.0.0.1' || // IPv4 localhost
-  //   clientIp === '::ffff:127.0.0.1' // IPv4 mapped IPv6 localhost
-  // ) {
-  //   return next(); // skip auth for localhost
-  // }
+  if (
+    clientIp === '::1' ||     // IPv6 localhost
+    clientIp === '127.0.0.1' || // IPv4 localhost
+    clientIp === '::ffff:127.0.0.1' // IPv4 mapped IPv6 localhost
+  ) {
+    return next(); // skip auth for localhost
+  }
 
   if (req.session && req.session.user) {
     return next();
