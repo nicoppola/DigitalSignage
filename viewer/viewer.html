@@ -166,7 +166,7 @@ async function fetchSideConfig(side) {
     const serverConfig = await res.json();
 
     config[side].rotateIntervalSec = serverConfig.secondsBetweenImages ?? config[side].rotateIntervalSec;
-    config[side].refreshIntervalSec = serverConfig.secondsBetweenImages ?? config[side].refreshIntervalSec;
+    // config[side].refreshIntervalSec = serverConfig.secondsBetweenRefresh ?? config[side].refreshIntervalSec;
 
     updateTimers(side);
   } catch (err) {
