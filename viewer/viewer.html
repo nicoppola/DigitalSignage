@@ -62,123 +62,144 @@
   </div>
 
   <script>
-    // CONFIGURATION
-    const config = {
-      left: {
-        rotateIntervalSec: 5,      // rotate image every 5 seconds on left
-        refreshIntervalSec: 60,    // check for new photos every 60 seconds on left
-      },
-      right: {
-        rotateIntervalSec: 15,      // rotate image every 7 seconds on right
-        refreshIntervalSec: 60,    // check for new photos every 90 seconds on right
-      }
-    };
+const config = {
+  left: { rotateIntervalSec: 5, refreshIntervalSec: 60 },
+  right: { rotateIntervalSec: 15, refreshIntervalSec: 60 }
+};
 
-    // STATE
-    const state = {
-      "left": { images: [], currentIndex: 0, rotateTimer: null, refreshTimer: null },
-      "right": { images: [], currentIndex: 0, rotateTimer: null, refreshTimer: null },
-    };
+const state = {
+  left: {
+    images: [],
+    currentIndex: 0,
+    rotateTimer: null,
+    refreshTimer: null,
+    currentRotateInterval: null,
+    currentRefreshInterval: null,
+  },
+  right: {
+    images: [],
+    currentIndex: 0,
+    rotateTimer: null,
+    refreshTimer: null,
+    currentRotateInterval: null,
+    currentRefreshInterval: null,
+  }
+};
 
-    async function fetchImages(folder) {
-      try {
-        const response = await fetch(`/api/files?folder=${folder}`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        if (!data.files || data.files.length === 0) return [];
-        return data.files;
-      } catch (err) {
-        console.warn(`Could not load folder "${folder}":`, err);
-        return [];
-      }
-    }
+// Rotate to next image
+function rotateImage(folder) {
+  const images = state[folder].images;
+  if (images.length === 0) return;
+  state[folder].currentIndex = (state[folder].currentIndex + 1) % images.length;
+  showImage(folder);
+}
 
-    function showImage(folder) {
-      const container = document.getElementById(folder === "left" ? "left-panel" : "right-panel");
-      container.innerHTML = ""; // clear previous images
+// Show current image
+function showImage(folder) {
+  const container = document.getElementById(folder === "left" ? "left-panel" : "right-panel");
+  container.innerHTML = "";
+  const images = state[folder].images;
 
-      const images = state[folder].images;
-      if (images.length === 0) {
-        container.innerHTML = `<div class="message"></div>`; // blank black panel, no message
-        return;
-      }
+  if (images.length === 0) {
+    container.innerHTML = `<div class="message"></div>`;
+    return;
+  }
 
-      images.forEach((file, idx) => {
-        const img = document.createElement("img");
-        img.src = `/uploads/${folder}/${file}`;
-        if (idx === state[folder].currentIndex) img.classList.add("active");
-        container.appendChild(img);
-      });
-    }
+  images.forEach((file, idx) => {
+    const img = document.createElement("img");
+    img.src = `/uploads/${folder}/${file}`;
+    if (idx === state[folder].currentIndex) img.classList.add("active");
+    container.appendChild(img);
+  });
+}
 
-    function rotateImage(folder) {
-      const images = state[folder].images;
-      if (images.length === 0) return;
+// Load images from server
+async function fetchImages(folder) {
+  try {
+    const response = await fetch(`/api/files?folder=${folder}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    return data.files || [];
+  } catch (err) {
+    console.warn(`Could not load folder "${folder}":`, err);
+    return [];
+  }
+}
 
-      state[folder].currentIndex = (state[folder].currentIndex + 1) % images.length;
-      showImage(folder);
-    }
+// Refresh images if changed
+async function refreshImages(folder) {
+  const newImages = await fetchImages(folder);
+  if (JSON.stringify(newImages) !== JSON.stringify(state[folder].images)) {
+    state[folder].images = newImages;
+    state[folder].currentIndex = 0;
+    showImage(folder);
+  }
+}
 
-    async function refreshImages(folder) {
-      const oldImages = state[folder].images;
-      const newImages = await fetchImages(folder);
+// NEW: Set or update timers only if interval changed
+function updateTimers(folder) {
+  const cfg = config[folder];
+  const st = state[folder];
 
-      // Only update if changed
-      if (JSON.stringify(oldImages) !== JSON.stringify(newImages)) {
-        state[folder].images = newImages;
-        state[folder].currentIndex = 0;
-        showImage(folder);
-      }
-    }
+  // Rotate timer
+  if (cfg.rotateIntervalSec !== st.currentRotateInterval) {
+    clearInterval(st.rotateTimer);
+    st.rotateTimer = setInterval(() => rotateImage(folder), cfg.rotateIntervalSec * 1000);
+    st.currentRotateInterval = cfg.rotateIntervalSec;
+    console.log(`[${folder}] Rotate timer set to ${cfg.rotateIntervalSec}s`);
+  }
 
-    async function startPanel(folder, rotateIntervalSec, refreshIntervalSec) {
-      // Initial load
-      state[folder].images = await fetchImages(folder);
-      showImage(folder);
+  // Refresh timer
+  if (cfg.refreshIntervalSec !== st.currentRefreshInterval) {
+    clearInterval(st.refreshTimer);
+    st.refreshTimer = setInterval(() => refreshImages(folder), cfg.refreshIntervalSec * 1000);
+    st.currentRefreshInterval = cfg.refreshIntervalSec;
+    console.log(`[${folder}] Refresh timer set to ${cfg.refreshIntervalSec}s`);
+  }
+}
 
-      // Set up rotation timer
-      state[folder].rotateTimer = setInterval(() => rotateImage(folder), rotateIntervalSec * 1000);
+// Fetch and apply server config for one side
+async function fetchSideConfig(side) {
+  try {
+    const res = await fetch(`/config?side=${encodeURIComponent(side)}`);
+    if (!res.ok) throw new Error('Fetch failed');
+    const serverConfig = await res.json();
 
-      // Set up refresh timer
-      state[folder].refreshTimer = setInterval(() => refreshImages(folder), refreshIntervalSec * 1000);
-    }
+    config[side].rotateIntervalSec = serverConfig.secondsBetweenImages ?? config[side].rotateIntervalSec;
+    config[side].refreshIntervalSec = serverConfig.secondsBetweenImages ?? config[side].refreshIntervalSec;
 
-    async function fetchSideConfig(side) {
-      try {
-        const res = await fetch(`/config?side=${encodeURIComponent(side)}`);
-        if (!res.ok) throw new Error('Fetch failed');
-        const serverConfig = await res.json();
+    updateTimers(side);
+  } catch (err) {
+    console.warn(`Could not fetch config for ${side}, using defaults.`, err);
+  }
+}
 
-        console.log(`Fetched config for ${side}:`, serverConfig);
+// Initial setup
+async function startPanel(folder) {
+  state[folder].images = await fetchImages(folder);
+  showImage(folder);
+  updateTimers(folder);
+}
 
-        config[side] = {
-          rotateIntervalSec: serverConfig.secondsBetweenImages ?? config[side].rotateIntervalSec,
-          refreshIntervalSec: serverConfig.secondsBetweenImages ?? config[side].refreshIntervalSec,
-        };
-      } catch (err) {
-        console.warn(`Could not fetch config for ${side}, using defaults.`, err);
-      }
-    }
+// Load everything
+async function loadConfigs() {
+  await Promise.all([
+    fetchSideConfig('left'),
+    fetchSideConfig('right')
+  ]);
 
-    async function loadConfigs() {
-      await Promise.all([
-        fetchSideConfig('left'),
-        fetchSideConfig('right')
-      ]);
+  await startPanel("left");
+  await startPanel("right");
 
-      // Continue with app logic once config is ready
-      // Start both panels with their configured intervals
-      startPanel("left", config.left.rotateIntervalSec, config.left.refreshIntervalSec);
-      startPanel("right", config.right.rotateIntervalSec, config.right.refreshIntervalSec);
+  // Refresh config every 60s
+  setInterval(() => {
+    fetchSideConfig('left');
+    fetchSideConfig('right');
+  }, 60 * 1000);
+}
 
-      // Refresh config every 60 seconds
-      setInterval(() => {
-        fetchSideConfig('left');
-        fetchSideConfig('right');
-      }, 60 * 1000);
+loadConfigs();
 
-    }
-    loadConfigs();
   </script>
 </body>
 
