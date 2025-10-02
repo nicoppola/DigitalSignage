@@ -8,8 +8,18 @@ const app = express()
 const PORT = 4000
 
 app.use(cors())
+app.use(express.json());
 
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const CONFIGS_DIR = path.join(__dirname, 'configs');
+// Helper to get config path by side
+const getConfigPath = (side) => {
+  const safeSide = side.replace(/[^a-zA-Z0-9-_]/g, '');
+  return path.join(CONFIGS_DIR, `config_${safeSide}.json`);
+};
+if (!fs.existsSync(CONFIGS_DIR)) {
+  fs.mkdirSync(CONFIGS_DIR, { recursive: true });
+}
 
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
@@ -92,6 +102,53 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.get('/viewer', (req, res) => {
   res.sendFile(path.join(__dirname, '../viewer/viewer.html'));
 });
+
+// GET /config?side=someSide
+app.get('/config', (req, res) => {
+  const side = req.query.side;
+  if (!side) return res.status(400).json({ error: 'Missing side parameter' });
+
+  const configPath = getConfigPath(side);
+
+  fs.readFile(configPath, 'utf8', (err, data) => {
+    if (err) {
+      if (err.code === 'ENOENT') {
+        return res.json({});
+      }
+      console.error('Error reading config:', err);
+      return res.status(500).json({ error: 'Could not read config' });
+    }
+
+    try {
+      const config = JSON.parse(data);
+      res.json(config);
+    } catch (parseErr) {
+      console.error('Error parsing config:', parseErr);
+      res.status(500).json({ error: 'Invalid config format' });
+    }
+  });
+});
+
+// POST /config with JSON { side: "someSide", config: { ... } }
+app.post('/config', (req, res) => {
+  const { side, config } = req.body;
+
+  if (!side || !config || typeof config !== 'object') {
+    return res.status(400).json({ error: 'Missing or invalid side/config in body' });
+  }
+
+  const configPath = getConfigPath(side);
+
+  fs.writeFile(configPath, JSON.stringify(config, null, 2), (err) => {
+    if (err) {
+      console.error('Error saving config:', err);
+      return res.status(500).json({ error: 'Failed to save config' });
+    }
+    res.json({ status: 'ok' });
+  });
+});
+
+
 
 // Serve React build static files
 app.use(express.static(path.join(__dirname, '../management-app', 'dist')));

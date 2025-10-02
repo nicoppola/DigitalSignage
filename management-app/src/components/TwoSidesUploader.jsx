@@ -3,6 +3,7 @@ import FileList from './FileList';
 import { useState } from 'react'
 import ImageUploader from './ImageUploader'
 import './TwoSidesUploader.css'
+import ConfigPanel from './ConfigPanel';
 
 const TwoSidesUploader = () => {
 
@@ -13,8 +14,13 @@ const TwoSidesUploader = () => {
     <div className="container side-container">
       {/* Left Column */}
       <div>
+          <h2>Left Side</h2>
         <div className="side">
-          <h2>Left Side Upload</h2>
+          <ConfigPanel side="left"/>
+        </div>
+
+        <div className="side">
+          <h2>Upload</h2>
           <ImageUploader 
             folderName="left-side"
             onUploadComplete={() => setLeftRefresh(prev => prev + 1)}
@@ -29,8 +35,13 @@ const TwoSidesUploader = () => {
 
       {/* Right Column */}
       <div>
+          <h2>Right Side</h2>
         <div className="side">
-          <h2>Right Side Upload</h2>
+          <ConfigPanel side="right"/>
+        </div>
+
+        <div className="side">
+          <h2>Upload</h2>
           <ImageUploader 
             folderName="right-side"
             onUploadComplete={() => setRightRefresh(prev => prev + 1)}
