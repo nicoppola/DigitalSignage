@@ -66,7 +66,7 @@ function requireLogin(req, res, next) {
     return next();
   }
 
-  console.log(`-- Auth Failed --`);
+  console.log(`-- Auth Failed ${clientIp} --`);
 
   res.status(401).json({ error: 'Unauthorized' });
 }
