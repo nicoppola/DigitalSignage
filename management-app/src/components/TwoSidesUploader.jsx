@@ -22,14 +22,14 @@ const TwoSidesUploader = () => {
         <div className="side">
           <h2>Upload</h2>
           <ImageUploader 
-            folderName="left-side"
+            folderName="left"
             onUploadComplete={() => setLeftRefresh(prev => prev + 1)}
           />
         </div>
 
         <div className="side">
           <h2>Left Side Files</h2>
-          <FileList folderName="left-side" refreshTrigger={leftRefresh}/>
+          <FileList folderName="left" refreshTrigger={leftRefresh}/>
         </div>
       </div>
 
@@ -43,14 +43,14 @@ const TwoSidesUploader = () => {
         <div className="side">
           <h2>Upload</h2>
           <ImageUploader 
-            folderName="right-side"
+            folderName="right"
             onUploadComplete={() => setRightRefresh(prev => prev + 1)}
           />
         </div>
 
         <div className="side">
           <h2>Right Side Files</h2>
-          <FileList folderName="right-side" refreshTrigger={rightRefresh}/>
+          <FileList folderName="right" refreshTrigger={rightRefresh}/>
         </div>
       </div>
     </div>

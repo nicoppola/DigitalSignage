@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <title>Image Viewer</title>
@@ -10,7 +11,8 @@
       box-sizing: border-box;
     }
 
-    html, body {
+    html,
+    body {
       height: 100%;
       background-color: black;
       color: white;
@@ -52,6 +54,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <div id="left-panel" class="panel"></div>
@@ -61,20 +64,20 @@
   <script>
     // CONFIGURATION
     const config = {
-      leftSide: {
+      left: {
         rotateIntervalSec: 5,      // rotate image every 5 seconds on left
         refreshIntervalSec: 60,    // check for new photos every 60 seconds on left
       },
-      rightSide: {
+      right: {
         rotateIntervalSec: 15,      // rotate image every 7 seconds on right
-        refreshIntervalSec: 90,    // check for new photos every 90 seconds on right
+        refreshIntervalSec: 60,    // check for new photos every 90 seconds on right
       }
     };
 
     // STATE
     const state = {
-      "left-side": { images: [], currentIndex: 0, rotateTimer: null, refreshTimer: null },
-      "right-side": { images: [], currentIndex: 0, rotateTimer: null, refreshTimer: null },
+      "left": { images: [], currentIndex: 0, rotateTimer: null, refreshTimer: null },
+      "right": { images: [], currentIndex: 0, rotateTimer: null, refreshTimer: null },
     };
 
     async function fetchImages(folder) {
@@ -91,7 +94,7 @@
     }
 
     function showImage(folder) {
-      const container = document.getElementById(folder === "left-side" ? "left-panel" : "right-panel");
+      const container = document.getElementById(folder === "left" ? "left-panel" : "right-panel");
       container.innerHTML = ""; // clear previous images
 
       const images = state[folder].images;
@@ -140,9 +143,41 @@
       state[folder].refreshTimer = setInterval(() => refreshImages(folder), refreshIntervalSec * 1000);
     }
 
-    // Start both panels with their configured intervals
-    startPanel("left-side", config.leftSide.rotateIntervalSec, config.leftSide.refreshIntervalSec);
-    startPanel("right-side", config.rightSide.rotateIntervalSec, config.rightSide.refreshIntervalSec);
+    async function fetchSideConfig(side) {
+      try {
+        const res = await fetch(`/config?side=${encodeURIComponent(side)}`);
+        if (!res.ok) throw new Error('Fetch failed');
+        const serverConfig = await res.json();
+
+        config[side] = {
+          rotateIntervalSec: serverConfig.rotateIntervalSec ?? config[side].rotateIntervalSec,
+          refreshIntervalSec: serverConfig.refreshIntervalSec ?? config[side].refreshIntervalSec,
+        };
+      } catch (err) {
+        console.warn(`Could not fetch config for ${side}, using defaults.`, err);
+      }
+    }
+
+    async function loadConfigs() {
+      await Promise.all([
+        fetchSideConfig('left'),
+        fetchSideConfig('right')
+      ]);
+
+      // Continue with app logic once config is ready
+      // Start both panels with their configured intervals
+      startPanel("left", config.left.rotateIntervalSec, config.left.refreshIntervalSec);
+      startPanel("right", config.right.rotateIntervalSec, config.right.refreshIntervalSec);
+
+      // Refresh config every 60 seconds
+      setInterval(() => {
+        fetchSideConfig('left');
+        fetchSideConfig('right');
+      }, 60 * 1000);
+
+    }
+    loadConfigs();
   </script>
 </body>
+
 </html>
