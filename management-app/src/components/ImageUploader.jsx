@@ -55,7 +55,8 @@ const ImageUploader = ({ folderName = 'default-folder', onUploadComplete = {} })
       // Include folderName as a query param in the upload URL
       const res = await fetch(`/api/upload?folder=${encodeURIComponent(folderName)}`, {
         method: 'POST',
-        body: formData
+        body: formData,
+        credentials: 'include' 
       })
 
       if (res.ok) {

@@ -16,7 +16,7 @@ const ConfigPanel = ({ side }) => {
     if (!side) return;
 
     setLoading(true);
-    fetch(`/config?side=${encodeURIComponent(side)}`)
+    fetch(`/config?side=${encodeURIComponent(side)}`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         // Defensive: if secondsBetweenImages missing, fallback to empty string
@@ -56,6 +56,7 @@ const ConfigPanel = ({ side }) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ side, config }),
+         credentials: 'include' 
       });
 
       if (!res.ok) throw new Error('Failed to save');

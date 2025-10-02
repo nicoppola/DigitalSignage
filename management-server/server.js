@@ -1,15 +1,21 @@
 const express = require('express')
+const session = require('express-session');
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
 const cors = require('cors')
+const { validateUser } = require('./users');
 
 const app = express()
 const PORT = 4000
 
-app.use(cors())
+app.use(cors({
+  origin: 'http://localhost:4000',
+  credentials: true,
+}))
 app.use(express.json());
 
+const USERS = require('./users');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const CONFIGS_DIR = path.join(__dirname, 'configs');
 // Helper to get config path by side
@@ -21,10 +27,75 @@ if (!fs.existsSync(CONFIGS_DIR)) {
   fs.mkdirSync(CONFIGS_DIR, { recursive: true });
 }
 
+// log all calls
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
   next();
 });
+
+
+// Setup session middleware
+app.use(session({
+  secret: 'some-super-secret-key', // change this to a strong secret
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 30 * 60 * 1000, // 30 minutes session
+    httpOnly: true,
+    // secure: true, // enable if using HTTPS
+  }
+}));
+
+// Middleware to protect routes
+function requireLogin(req, res, next) {
+  const clientIp = req.ip || req.connection.remoteAddress;
+
+  // Allow localhost (IPv4 and IPv6)
+  // if (
+  //   clientIp === '::1' ||     // IPv6 localhost
+  //   clientIp === '127.0.0.1' || // IPv4 localhost
+  //   clientIp === '::ffff:127.0.0.1' // IPv4 mapped IPv6 localhost
+  // ) {
+  //   return next(); // skip auth for localhost
+  // }
+
+  if (req.session && req.session.user) {
+    return next();
+  }
+
+  res.status(401).json({ error: 'Unauthorized' });
+}
+
+// Login route
+app.post('/login', (req, res) => {
+  const { username, password } = req.body;
+
+  if (validateUser(username, password)) {
+    req.session.user = username;
+    res.json({ status: 'ok' });
+  } else {
+    res.status(401).json({ error: 'Invalid username or password' });
+  }
+});
+
+// Logout route
+app.post('/logout', requireLogin, (req, res) => {
+  req.session.destroy(err => {
+    if (err) {
+      return res.status(500).json({ error: 'Logout failed' });
+    }
+    res.json({ status: 'logged out' });
+  });
+});
+
+// Protect your config and other APIs:
+app.use('/config', requireLogin);
+app.use('/api', requireLogin);
+app.use('/uploads', requireLogin);
+
+
+
+
 
 // Helper: sanitize folder and file names to prevent path traversal
 function sanitizeName(name) {

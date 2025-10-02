@@ -5,7 +5,7 @@ function FileList({ folderName, refreshTrigger }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
 
   useEffect(() => {
-    fetch(`/api/files?folder=${folderName}`)
+    fetch(`/api/files?folder=${folderName}`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         if (data.files) setFiles(data.files);
@@ -35,6 +35,7 @@ function FileList({ folderName, refreshTrigger }) {
     Promise.all(selectedFiles.map(filename =>
       fetch(`/api/files?folder=${folderName}&filename=${filename}`, {
         method: 'DELETE',
+        credentials: 'include' 
       })
     ))
       .then(() => {
