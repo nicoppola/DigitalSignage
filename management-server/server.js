@@ -28,10 +28,10 @@ if (!fs.existsSync(CONFIGS_DIR)) {
 }
 
 // log all calls
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
-  next();
-});
+// app.use((req, res, next) => {
+//   console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
+//   next();
+// });
 
 
 // Setup session middleware
@@ -49,6 +49,7 @@ app.use(session({
 // Middleware to protect routes
 function requireLogin(req, res, next) {
   const clientIp = req.ip || req.connection.remoteAddress;
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
 
   // Allow localhost (IPv4 and IPv6)
   if (
@@ -56,10 +57,12 @@ function requireLogin(req, res, next) {
     clientIp === '127.0.0.1' || // IPv4 localhost
     clientIp === '::ffff:127.0.0.1' // IPv4 mapped IPv6 localhost
   ) {
+    console.log(`-- Skip Auth Localhost --`);
     return next(); // skip auth for localhost
   }
 
   if (req.session && req.session.user) {
+    console.log(`-- Auth Verified --`);
     return next();
   }
 
