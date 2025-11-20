@@ -4,6 +4,7 @@ const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
 const cors = require('cors')
+const sharp = require('sharp')
 const { validateUser } = require('./users');
 
 const app = express()
@@ -107,31 +108,41 @@ function sanitizeName(name) {
   return name.replace(/[^a-zA-Z0-9-_]/g, '');
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // If folder query param exists and is not empty, use uploads/folder, else uploads/
-    const folder = req.query.folder && req.query.folder.trim() !== '' ? req.query.folder.trim() : ''
-    const uploadPath = folder 
-      ? path.join(__dirname, 'uploads', folder) 
-      : path.join(__dirname, 'uploads')
+const upload = multer({ storage: multer.memoryStorage() }); // <-- use memory storage
 
-    fs.mkdirSync(uploadPath, { recursive: true })
-    cb(null, uploadPath)
-  },
-  filename: (req, file, cb) => {
-    cb(null, file.originalname)
-  }
-})
-
-const upload = multer({ storage })
-
-app.post('/api/upload', upload.array('images'), (req, res) => {
+app.post('/api/upload', upload.array('images'), async (req, res) => {
   if (!req.files || req.files.length === 0) {
-    return res.status(400).json({ error: 'No files uploaded' })
+    return res.status(400).json({ error: 'No files uploaded' });
   }
 
-  res.json({ message: 'Files uploaded successfully', files: req.files.map(f => f.filename) })
-})
+  const folder = req.query.folder && req.query.folder.trim() !== '' ? req.query.folder.trim() : '';
+  const uploadPath = folder 
+    ? path.join(UPLOADS_DIR, folder) 
+    : UPLOADS_DIR;
+
+  fs.mkdirSync(uploadPath, { recursive: true });
+
+  try {
+    await Promise.all(req.files.map(async (file) => {
+      // Resize & convert to WebP (adjust width/height for your display)
+      const outputFileName = file.originalname.replace(/\.[^/.]+$/, '.webp'); // convert to .webp
+      const outputPath = path.join(uploadPath, outputFileName);
+
+      await sharp(file.buffer)
+        .resize({ width: 1920, height: 1080, fit: 'inside' }) // keep aspect ratio, fit inside display
+        .webp({ quality: 80 }) // adjust quality for speed/size tradeoff
+        .toFile(outputPath);
+    }));
+
+    res.json({ 
+      message: 'Files uploaded and optimized successfully', 
+      files: req.files.map(f => f.originalname.replace(/\.[^/.]+$/, '.webp')) 
+    });
+  } catch (err) {
+    console.error('Image processing failed:', err);
+    res.status(500).json({ error: 'Failed to process images' });
+  }
+});
 
 // GET /api/files?folder=folderName
 app.get('/api/files', (req, res) => {
