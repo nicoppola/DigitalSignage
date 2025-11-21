@@ -12,7 +12,7 @@ cd ../setup
 
 echo ""
 echo "Setting up Bash Profile...."
-./seup_bash_profile.sh
+./setup_bash_profile.sh
 
 echo ""
 echo "Setting up Auto Login on Boot...."
