@@ -3,6 +3,12 @@
 # File to modify
 BASH_PROFILE="$HOME/.bash_profile"
 
+# Create the file if it doesn't exist
+if [ ! -f "$BASH_PROFILE" ]; then
+    touch "$BASH_PROFILE"
+    echo "Created $BASH_PROFILE"
+fi
+
 # The lines we want to add
 AUTO_STARTX='
 # Auto-start X on tty1 if not already running
@@ -18,3 +24,4 @@ if ! grep -Fxq 'if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then' "$BASH
 else
     echo "startx auto-start lines already present in $BASH_PROFILE"
 fi
+
