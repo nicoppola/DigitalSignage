@@ -1,0 +1,15 @@
+# Disable screen blanking
+xset s off
+xset -dpms
+xset s noblank
+
+# hide mouse; allow exit with ctrl alt back
+setxkbmap -option terminate:ctrl_alt_bksp
+unclutter &
+
+# suppress wanings
+sed -i 's/"exited_cleanly":false/"exited_cleanly":true/' ~/.config/chromium/'Local State'
+sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"[^"]\+"/"exit_type":"Normal"/' ~/.config/chromium/Default/Preferences
+
+# Launch Chromium in kiosk mode
+chromium --use-gl-egl --enable-reatures=VaapiVideoDecoder --hide-scrollbars --noerrdialogs --no-memcheck --kiosk http://localhost:4000/viewer --incognito --disable-translate --no-first-run &

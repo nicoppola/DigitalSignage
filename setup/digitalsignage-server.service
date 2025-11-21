@@ -1,0 +1,16 @@
+[Unit]
+Description=Digital Signage Management Server
+After=network.target
+
+[Service]
+WorkingDirectory=/home/pi/DigitalSignage/management-server
+ExecStart=/usr/bin/node server.js
+Restart=always
+User=pi
+Environment=NODE_ENV=production
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
