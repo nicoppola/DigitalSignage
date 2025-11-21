@@ -2,15 +2,33 @@
 
 CONFIG_FILE="/boot/firmware/config.txt"
 GPU_MEM="256"
+VC4_OVERLAY="dtoverlay=vc4-kms-v3d"
+VC6_OVERLAY="dtoverlay=vc6-kms-v3d"
 
-# Check if the line already exists
+echo "Updating $CONFIG_FILE ..."
+
+# --- Ensure gpu_mem is set ---
 if grep -q "^gpu_mem=" "$CONFIG_FILE"; then
-    # Update existing gpu_mem line
     sudo sed -i "s/^gpu_mem=.*/gpu_mem=$GPU_MEM/" "$CONFIG_FILE"
-    echo "Updated existing gpu_mem line to $GPU_MEM MB."
+    echo "✔ Updated gpu_mem to $GPU_MEM MB."
 else
-    # Add gpu_mem line at the end of the file
     echo "gpu_mem=$GPU_MEM" | sudo tee -a "$CONFIG_FILE" > /dev/null
-    echo "Added gpu_mem=$GPU_MEM to $CONFIG_FILE."
+    echo "✔ Added gpu_mem=$GPU_MEM."
 fi
+
+# --- Comment out vc4 overlay if present ---
+if grep -q "^$VC4_OVERLAY" "$CONFIG_FILE"; then
+    sudo sed -i "s/^$VC4_OVERLAY/# $VC4_OVERLAY/" "$CONFIG_FILE"
+    echo "✔ Commented out vc4 overlay."
+fi
+
+# --- Ensure vc6 overlay exists ---
+if grep -q "^$VC6_OVERLAY" "$CONFIG_FILE"; then
+    echo "✔ vc6 overlay already present."
+else
+    echo "$VC6_OVERLAY" | sudo tee -a "$CONFIG_FILE" > /dev/null
+    echo "✔ Added vc6 overlay."
+fi
+
+echo "Done! You should reboot for changes to take effect."
 

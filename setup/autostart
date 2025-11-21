@@ -1,11 +1,17 @@
+#!/bin/bash
+export DISPLAY=:0
+
 # Disable screen blanking
 xset s off
 xset -dpms
 xset s noblank
 
-# hide mouse; allow exit with ctrl alt back
+# Hide mouse
 setxkbmap -option terminate:ctrl_alt_bksp
 unclutter &
+
+# Wait a few seconds to ensure X is ready
+sleep 5
 
 # suppress wanings
 sed -i 's/"exited_cleanly":false/"exited_cleanly":true/' ~/.config/chromium/'Local State'
