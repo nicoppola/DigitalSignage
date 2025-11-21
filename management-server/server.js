@@ -129,10 +129,13 @@ app.post('/api/upload', upload.array('images'), async (req, res) => {
       const outputPath = path.join(uploadPath, outputFileName);
 
       await sharp(file.buffer)
-        .resize({ width: 1920, height: 1080, fit: 'inside' }) // keep aspect ratio, fit inside display
-        .webp({ quality: 80 }) // adjust quality for speed/size tradeoff
+        .resize(1920, 1080, {
+          fit: "inside",
+          kernel: sharp.kernel.lanczos3
+        })
+        .webp({ quality: 92 })   // great balance: crisp + small size
         .toFile(outputPath);
-    }));
+      }));
 
     res.json({ 
       message: 'Files uploaded and optimized successfully', 
