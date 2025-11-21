@@ -5,6 +5,12 @@ echo "Installing Dependencies...."
 ./install_dependencies.sh
 
 echo ""
+echo "Npm Install"
+cd ~/DigitalSignage/management-server
+npm install
+
+cd ~
+echo ""
 echo "Setting up Bash Profile...."
 ./seup_bash_profile.sh
 
