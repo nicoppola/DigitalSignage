@@ -130,7 +130,8 @@ app.post('/api/upload', upload.array('images'), async (req, res) => {
 
       await sharp(file.buffer)
         .resize(1920, 1080, {
-          fit: "inside",
+          fit: "cover",
+          position: "center",
           kernel: sharp.kernel.lanczos3
         })
         .webp({ quality: 92 })   // great balance: crisp + small size
@@ -239,6 +240,68 @@ app.post('/config', (req, res) => {
 });
 
 
+const simpleGit = require('simple-git');
+const { exec } = require('child_process');
+const git = simpleGit(__dirname); // assuming this is your repo root
+
+app.post('/api/self-update', async (req, res) => {
+  try {
+    // Fetch latest changes
+    await git.fetch();
+
+    // Get local and remote commit hashes
+    const local = await git.revparse(['HEAD']);
+    const remote = await git.revparse(['origin/master']);
+
+    if (local === remote) {
+      return res.json({ updated: false, message: 'Already up to date.' });
+    }
+
+    // Pull latest changes
+    await git.pull('origin', 'master');
+
+    // Run npm install
+    exec('npm install', { cwd: __dirname }, (err, stdout, stderr) => {
+      if (err) {
+        console.error('npm install failed:', stderr);
+        return res.status(500).json({ error: 'npm install failed' });
+      }
+
+      console.log(stdout);
+      res.json({ updated: true, message: 'Updated successfully, rebooting...' });
+
+      // Exit process so a process manager (pm2/systemd) restarts it
+      setTimeout(() => {
+        process.exit(0);
+      }, 1000);
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Update failed.' });
+  }
+});
+
+app.get('/api/check-updates', async (req, res) => {
+  console.log(__dirname)
+  try {
+    await git.fetch(); // get latest info from remote
+
+    const local = await git.revparse(['HEAD']);
+    const remote = await git.revparse(['origin/main']);
+
+    if (local === remote) {
+      return res.json({ updatesAvailable: false, message: 'You are up to date.' });
+    } else {
+      return res.json({ updatesAvailable: true, message: 'Updates are available.' });
+    }
+  } catch (err) {
+    console.error('Git check failed:', err);
+    return res.status(500).json({ error: 'Could not check for updates.' });
+  }
+});
+
+
 
 // Serve React build static files
 app.use(express.static(path.join(__dirname, '../management-app', 'dist')));
@@ -251,3 +314,4 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`)
 })
+
