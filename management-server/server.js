@@ -258,7 +258,7 @@ app.post('/api/self-update', async (req, res) => {
     }
 
     // Pull latest changes
-    await git.pull('origin', 'master');
+    await git.pull('origin', 'main');
 
     // Run npm install
     exec('npm install', { cwd: __dirname }, (err, stdout, stderr) => {

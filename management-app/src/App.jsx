@@ -44,7 +44,11 @@ const App = () => {
             credentials: "include",
           });
           const updateData = await updateRes.json();
-          setUpdateStatus(updateData.message);
+          if (!updateRes.ok || updateData.success === false) {
+            setUpdateStatus(updateData.message || "❌ Update failed.");
+          } else {
+            setUpdateStatus(updateData.message);
+          }
         } else {
           setUpdateStatus("⚠️ Update skipped.");
           clearTimeout(timeoutId);
