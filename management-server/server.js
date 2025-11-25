@@ -251,7 +251,7 @@ app.post('/api/self-update', async (req, res) => {
 
     // Get local and remote commit hashes
     const local = await git.revparse(['HEAD']);
-    const remote = await git.revparse(['origin/master']);
+    const remote = await git.revparse(['origin/main']);
 
     if (local === remote) {
       return res.json({ updated: false, message: 'Already up to date.' });
