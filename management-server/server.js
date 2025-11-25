@@ -242,7 +242,7 @@ app.post('/config', (req, res) => {
 
 const simpleGit = require('simple-git');
 const { exec } = require('child_process');
-const git = simpleGit(__dirname); // assuming this is your repo root
+const git = simpleGit(__dirname);
 
 app.post('/api/self-update', async (req, res) => {
   try {
