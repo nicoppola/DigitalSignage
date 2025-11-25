@@ -283,12 +283,14 @@ app.post('/api/self-update', async (req, res) => {
 });
 
 app.get('/api/check-updates', async (req, res) => {
-  console.log(__dirname)
   try {
     await git.fetch(); // get latest info from remote
 
-    const local = await git.revparse(['HEAD']);
-    const remote = await git.revparse(['origin/main']);
+    const local = (await git.revparse(['HEAD'])).trim();
+    const remote = (await git.revparse(['origin/main'])).trim();
+  
+    console.log(local)
+    console.log(remote)
 
     if (local === remote) {
       return res.json({ updatesAvailable: false, message: 'You are up to date.' });

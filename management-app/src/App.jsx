@@ -8,6 +8,7 @@ const App = () => {
   const [loggedIn, setLoggedIn] = useState(false);
   const [updateStatus, setUpdateStatus] = useState(""); // status text
   const [checking, setChecking] = useState(false); // spinner
+  const [timeoutId, setTimeoutId] = useState(null); // store timeout to clear if needed
 
   // Check if user is logged in by hitting a protected route
   useEffect(() => {
@@ -28,6 +29,10 @@ const App = () => {
 
       if (!data.updatesAvailable) {
         setUpdateStatus("✅ You are up to date.");
+        // Clear after 5 seconds
+        clearTimeout(timeoutId);
+        const id = setTimeout(() => setUpdateStatus(""), 4000);
+        setTimeoutId(id);
       } else {
         const confirmUpdate = window.confirm(
           "Updates are available. Would you like to update now?"
@@ -42,11 +47,17 @@ const App = () => {
           setUpdateStatus(updateData.message);
         } else {
           setUpdateStatus("⚠️ Update skipped.");
+          clearTimeout(timeoutId);
+          const id = setTimeout(() => setUpdateStatus(""), 5000);
+          setTimeoutId(id);
         }
       }
     } catch (err) {
       console.error(err);
       setUpdateStatus("❌ Failed to check for updates.");
+      clearTimeout(timeoutId);
+      const id = setTimeout(() => setUpdateStatus(""), 5000);
+      setTimeoutId(id);
     } finally {
       setChecking(false);
     }
