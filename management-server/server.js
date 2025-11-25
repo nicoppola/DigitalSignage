@@ -246,7 +246,6 @@ const git = simpleGit(__dirname);
 
 app.post('/api/self-update', async (req, res) => {
   try {
-    // Fetch latest changes
     await git.fetch();
 
     // Get local and remote commit hashes
