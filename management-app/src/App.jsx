@@ -94,34 +94,39 @@ const App = () => {
     <div>
       <h1>Signage Management</h1>
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "flex-start",
-          gap: "10px",
-          width: "100%",
-          justifyContent: "center",
-          marginBottom: "15px",
-        }}
-      >
-        {/* Update section */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "flex-start",
+            gap: "10px",
+            width: "100%",
+            justifyContent: "center",
+            marginBottom: "15px",
+          }}
+        >
           <button onClick={checkForUpdates} disabled={checking}>
             {checking ? "Checking..." : "Check for Updates"}
           </button>
-          {updateStatus && (
-            <div style={{ color: checking ? "gray" : "white", whiteSpace: "pre-line" }}>
+
+          <button
+            style={{ color: checking ? "gray" : "white" }}
+            onClick={handleReboot}
+          >
+            Reboot Pi
+          </button>
+        </div>
+        {updateStatus && (
+            <div
+              style={{
+                color: checking ? "gray" : "white",
+                whiteSpace: "pre-line",
+              }}
+            >
               {updateStatus}
             </div>
           )}
-        </div>
-        <button
-          style={{ color: checking ? "gray" : "white" }}
-          onClick={handleReboot}
-        >
-          Reboot Pi
-        </button>
       </div>
 
       <TwoSidesUploader />
