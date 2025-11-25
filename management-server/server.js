@@ -268,7 +268,7 @@ app.post('/api/self-update', async (req, res) => {
       }
 
       console.log(stdout);
-      res.json({ updated: true, message: 'Updated successfully, rebooting... \nRefresh after a few seconds' });
+      res.json({ updated: true, message: 'Updated successfully, rebooting... \nRefresh page after a few seconds' });
 
       // Exit process so a process manager (pm2/systemd) restarts it
       setTimeout(() => {
