@@ -111,7 +111,7 @@ const App = () => {
             {checking ? "Checking..." : "Check for Updates"}
           </button>
           {updateStatus && (
-            <div style={{ color: checking ? "gray" : "white" }}>
+            <div style={{ color: checking ? "gray" : "white", whiteSpace: "pre-line" }}>
               {updateStatus}
             </div>
           )}
