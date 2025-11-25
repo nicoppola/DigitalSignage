@@ -303,6 +303,29 @@ app.get('/api/check-updates', async (req, res) => {
   }
 });
 
+app.post('/api/reboot', (req, res) => {
+  try {
+    // Confirm action
+    console.log("Reboot requested by user:", req.session.user);
+
+    // Send immediate response to frontend
+    res.json({ message: "Rebooting the Pi..." });
+
+    // Delay a second to ensure response is sent
+    setTimeout(() => {
+      exec('sudo reboot', (err, stdout, stderr) => {
+        if (err) {
+          console.error('Reboot failed:', stderr);
+        }
+      });
+    }, 1000);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to reboot." });
+  }
+});
+
+
 
 
 // Serve React build static files

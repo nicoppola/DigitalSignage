@@ -19,6 +19,25 @@ const App = () => {
       .catch(() => setLoggedIn(false));
   }, []);
 
+  const handleReboot = async () => {
+    const confirmReboot = window.confirm(
+      "Are you sure you want to reboot the Pi? You will need to refresh the page after it comes back up."
+    );
+    if (!confirmReboot) return;
+
+    try {
+      const res = await fetch("/api/reboot", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      alert(data.message);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to reboot.");
+    }
+  };
+
   const checkForUpdates = async () => {
     setChecking(true);
     setUpdateStatus("Checking for updates...");
@@ -75,16 +94,34 @@ const App = () => {
     <div>
       <h1>Signage Management</h1>
 
-      {/* Update section */}
-      <div style={{ marginBottom: "20px" }}>
-        <button onClick={checkForUpdates} disabled={checking}>
-          {checking ? "Checking..." : "Check for Updates"}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "flex-start",
+          gap: "10px",
+          width: "100%",
+          justifyContent: "center",
+          marginBottom: "15px",
+        }}
+      >
+        {/* Update section */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <button onClick={checkForUpdates} disabled={checking}>
+            {checking ? "Checking..." : "Check for Updates"}
+          </button>
+          {updateStatus && (
+            <div style={{ color: checking ? "gray" : "white" }}>
+              {updateStatus}
+            </div>
+          )}
+        </div>
+        <button
+          style={{ color: checking ? "gray" : "white" }}
+          onClick={handleReboot}
+        >
+          Reboot Pi
         </button>
-        {updateStatus && (
-          <div style={{ marginTop: "8px", color: checking ? "gray" : "white" }}>
-            {updateStatus}
-          </div>
-        )}
       </div>
 
       <TwoSidesUploader />
