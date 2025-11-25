@@ -29,9 +29,9 @@ const App = () => {
 
       if (!data.updatesAvailable) {
         setUpdateStatus("✅ You are up to date.");
-        // Clear after 5 seconds
+        // Clear after 3.5 seconds
         clearTimeout(timeoutId);
-        const id = setTimeout(() => setUpdateStatus(""), 4000);
+        const id = setTimeout(() => setUpdateStatus(""), 3500);
         setTimeoutId(id);
       } else {
         const confirmUpdate = window.confirm(
