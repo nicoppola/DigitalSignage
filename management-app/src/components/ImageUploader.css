@@ -118,3 +118,37 @@
 .upload-btn:hover {
   background-color: #2563eb;
 }
+
+.small-spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid #bbb;
+  border-top-color: #3498db;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-left: 6px;
+}
+
+.checkmark {
+  color: green;
+  font-size: 20px;
+  margin-left: 6px;
+}
+
+.uploading-text {
+  font-size: 12px;
+  color: #3498db;
+  margin-top: 4px;
+}
+
+.done-text {
+  font-size: 12px;
+  color: green;
+  margin-top: 4px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
