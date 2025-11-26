@@ -128,15 +128,27 @@ app.post('/api/upload', upload.array('images'), async (req, res) => {
       const outputFileName = file.originalname.replace(/\.[^/.]+$/, '.webp'); // convert to .webp
       const outputPath = path.join(uploadPath, outputFileName);
 
-      await sharp(file.buffer)
-        .resize({
-          fit: "cover",
-          position: "center",
-          kernel: sharp.kernel.lanczos3
-        })
-        .webp({ quality: 92 })   // great balance: crisp + small size
+      // Load & auto-rotate based on EXIF
+      const image = sharp(file.buffer).rotate();
+
+      // Get metadata
+      const meta = await image.metadata();
+
+      const isPortrait = meta.height > meta.width;
+
+      await image
+        .resize(
+          isPortrait ? 1080 : 1920,   // width
+          isPortrait ? 1920 : 1080,   // height
+          {
+            fit: "inside",
+            kernel: sharp.kernel.lanczos3,
+          }
+        )
+        .webp({ quality: 92 })
         .toFile(outputPath);
-      }));
+    }) // <-- closes map()
+  ); // <-- closes Promise.all()
 
     res.json({ 
       message: 'Files uploaded and optimized successfully', 
