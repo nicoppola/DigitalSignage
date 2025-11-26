@@ -129,7 +129,7 @@ app.post('/api/upload', upload.array('images'), async (req, res) => {
       const outputPath = path.join(uploadPath, outputFileName);
 
       await sharp(file.buffer)
-        .resize(1920, 1080, {
+        .resize({
           fit: "cover",
           position: "center",
           kernel: sharp.kernel.lanczos3
