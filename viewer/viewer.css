@@ -17,17 +17,18 @@ body {
   display: flex;
   height: 100vh;
   width: 100vw;
+  gap: 4px;
 }
 
 .panel {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 10px;
   background-color: black;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 
 .panel img,
@@ -37,12 +38,14 @@ body {
   height: auto;
   object-fit: contain;
   margin-bottom: 10px;
-  display: none;
+  position: absolute;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
 }
 
 .panel img.active,
 .panel video.active {
-  display: block;
+  opacity: 1;
 }
 
 .message {
