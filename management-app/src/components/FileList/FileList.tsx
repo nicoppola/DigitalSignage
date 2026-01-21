@@ -96,6 +96,7 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
           <div className="file-grid" role="list" aria-label={`${files.length} uploaded files`}>
             {files.map((file) => {
               const isSelected = selectedFiles.includes(file);
+              const isVideo = file.endsWith('.mp4') || file.endsWith('.webm') || file.endsWith('.mov');
 
               return (
                 <label
@@ -111,11 +112,17 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
                     onClick={(e: MouseEvent<HTMLInputElement>) => e.stopPropagation()} // prevent label click toggling twice
                     aria-label={`Select ${file}`}
                   />
-                  <img
-                    src={`/uploads/${folderName}/${file}`}
-                    alt={`Thumbnail of ${file}`}
-                    className="file-thumbnail"
-                  />
+                  {isVideo ? (
+                    <div className="file-thumbnail video-thumbnail">
+                      <span className="play-icon">▶</span>
+                    </div>
+                  ) : (
+                    <img
+                      src={`/uploads/${folderName}/${file}`}
+                      alt={`Thumbnail of ${file}`}
+                      className="file-thumbnail"
+                    />
+                  )}
                   <span className="file-name">
                     {file}
                   </span>

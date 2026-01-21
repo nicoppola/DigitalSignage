@@ -19,39 +19,81 @@ const config = {
 
 const state = {
   [SIDES.LEFT]: {
-    images: [],
+    media: [],
     currentIndex: 0,
     rotateTimer: null,
     refreshTimer: null,
     currentRotateInterval: null,
     currentRefreshInterval: null,
+    isPlayingVideo: false,
   },
   [SIDES.RIGHT]: {
-    images: [],
+    media: [],
     currentIndex: 0,
     rotateTimer: null,
     refreshTimer: null,
     currentRotateInterval: null,
     currentRefreshInterval: null,
+    isPlayingVideo: false,
   }
 };
 
-// Rotate to next image by toggling active class
-function rotateImage(side) {
-  const images = state[side].images;
-  if (images.length === 0) return;
+// Check if a file is a video based on extension
+function isVideoFile(filename) {
+  const ext = filename.toLowerCase().split('.').pop();
+  return ['mp4', 'webm', 'mov'].includes(ext);
+}
+
+// Rotate to next media by toggling active class
+function rotateMedia(side) {
+  const media = state[side].media;
+  if (media.length === 0) return;
+
+  // Don't rotate if a video is currently playing
+  if (state[side].isPlayingVideo) return;
 
   const container = document.getElementById(`${side}-side`);
-  const imgElements = container.querySelectorAll('img');
+  const mediaElements = container.querySelectorAll('img, video');
 
   // Remove active from current
-  imgElements[state[side].currentIndex]?.classList.remove('active');
+  const currentEl = mediaElements[state[side].currentIndex];
+  if (currentEl) {
+    currentEl.classList.remove('active');
+    // Pause video if it was playing
+    if (currentEl.tagName === 'VIDEO') {
+      currentEl.pause();
+      currentEl.currentTime = 0;
+    }
+  }
 
   // Advance index
-  state[side].currentIndex = (state[side].currentIndex + 1) % images.length;
+  state[side].currentIndex = (state[side].currentIndex + 1) % media.length;
 
-  // Add active to new
-  imgElements[state[side].currentIndex]?.classList.add('active');
+  // Add active to new and handle video playback
+  const newEl = mediaElements[state[side].currentIndex];
+  if (newEl) {
+    newEl.classList.add('active');
+    if (newEl.tagName === 'VIDEO') {
+      state[side].isPlayingVideo = true;
+      newEl.play().catch(err => {
+        console.warn(`Could not autoplay video on ${side}:`, err);
+        state[side].isPlayingVideo = false;
+      });
+    }
+  }
+}
+
+// Handle video ended event - advance to next media and reset timer
+function handleVideoEnded(side) {
+  state[side].isPlayingVideo = false;
+  rotateMedia(side);
+
+  // Reset the rotation timer so next image gets full duration
+  clearInterval(state[side].rotateTimer);
+  state[side].rotateTimer = setInterval(
+    () => rotateMedia(side),
+    config[side].rotateIntervalSec * 1000
+  );
 }
 
 // Preload an image and return a promise
@@ -64,32 +106,69 @@ function preloadImage(src) {
   });
 }
 
-// Render all images (only called when image list changes)
-async function renderImages(side) {
+// Preload a video (just load metadata)
+function preloadVideo(src) {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => resolve(video);
+    video.onerror = () => resolve(video);
+    video.src = src;
+  });
+}
+
+// Render all media (only called when media list changes)
+async function renderMedia(side) {
   const container = document.getElementById(`${side}-side`);
   container.innerHTML = "";
-  const images = state[side].images;
+  const media = state[side].media;
 
-  if (images.length === 0) {
+  if (media.length === 0) {
     container.innerHTML = `<div class="message"></div>`;
     return;
   }
 
-  // Preload all images before displaying
-  const srcs = images.map(file => `/uploads/${side}/${file}`);
-  await Promise.all(srcs.map(preloadImage));
+  // Preload all media before displaying
+  const preloadPromises = media.map(file => {
+    const src = `/uploads/${side}/${file}`;
+    return isVideoFile(file) ? preloadVideo(src) : preloadImage(src);
+  });
+  await Promise.all(preloadPromises);
 
-  // Now create and append the img elements
-  images.forEach((file, idx) => {
-    const img = document.createElement("img");
-    img.src = `/uploads/${side}/${file}`;
-    if (idx === state[side].currentIndex) img.classList.add("active");
-    container.appendChild(img);
+  // Create and append media elements
+  media.forEach((file, idx) => {
+    const src = `/uploads/${side}/${file}`;
+    let el;
+
+    if (isVideoFile(file)) {
+      el = document.createElement('video');
+      el.src = src;
+      el.muted = true;  // Required for autoplay
+      el.playsInline = true;
+      el.addEventListener('ended', () => handleVideoEnded(side));
+    } else {
+      el = document.createElement('img');
+      el.src = src;
+    }
+
+    if (idx === state[side].currentIndex) {
+      el.classList.add('active');
+      // Start playing if it's a video
+      if (el.tagName === 'VIDEO') {
+        state[side].isPlayingVideo = true;
+        el.play().catch(err => {
+          console.warn(`Could not autoplay video on ${side}:`, err);
+          state[side].isPlayingVideo = false;
+        });
+      }
+    }
+
+    container.appendChild(el);
   });
 }
 
-// Load images from server
-async function fetchImages(side) {
+// Load media files from server
+async function fetchMedia(side) {
   try {
     const response = await fetch(`/api/files?folder=${side}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -110,13 +189,14 @@ function arraysEqual(a, b) {
   return true;
 }
 
-// Refresh images if changed
-async function refreshImages(side) {
-  const newImages = await fetchImages(side);
-  if (!arraysEqual(newImages, state[side].images)) {
-    state[side].images = newImages;
+// Refresh media if changed
+async function refreshMedia(side) {
+  const newMedia = await fetchMedia(side);
+  if (!arraysEqual(newMedia, state[side].media)) {
+    state[side].media = newMedia;
     state[side].currentIndex = 0;
-    renderImages(side);
+    state[side].isPlayingVideo = false;
+    renderMedia(side);
   }
 }
 
@@ -128,7 +208,7 @@ function updateTimers(side) {
   // Rotate timer
   if (cfg.rotateIntervalSec !== st.currentRotateInterval) {
     clearInterval(st.rotateTimer);
-    st.rotateTimer = setInterval(() => rotateImage(side), cfg.rotateIntervalSec * 1000);
+    st.rotateTimer = setInterval(() => rotateMedia(side), cfg.rotateIntervalSec * 1000);
     st.currentRotateInterval = cfg.rotateIntervalSec;
     console.log(`[${side}] Rotate timer set to ${cfg.rotateIntervalSec}s`);
   }
@@ -136,7 +216,7 @@ function updateTimers(side) {
   // Refresh timer
   if (cfg.refreshIntervalSec !== st.currentRefreshInterval) {
     clearInterval(st.refreshTimer);
-    st.refreshTimer = setInterval(() => refreshImages(side), cfg.refreshIntervalSec * 1000);
+    st.refreshTimer = setInterval(() => refreshMedia(side), cfg.refreshIntervalSec * 1000);
     st.currentRefreshInterval = cfg.refreshIntervalSec;
     console.log(`[${side}] Refresh timer set to ${cfg.refreshIntervalSec}s`);
   }
@@ -159,8 +239,8 @@ async function fetchSideConfig(side) {
 
 // Initial setup
 async function startSide(side) {
-  state[side].images = await fetchImages(side);
-  renderImages(side);
+  state[side].media = await fetchMedia(side);
+  renderMedia(side);
   updateTimers(side);
 }
 

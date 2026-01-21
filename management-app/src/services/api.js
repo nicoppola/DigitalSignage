@@ -180,7 +180,7 @@ export const fileAPI = {
     return new Promise((resolve, reject) => {
       const formData = new FormData();
       Array.from(files).forEach((file) => {
-        formData.append('images', file);
+        formData.append('media', file);
       });
 
       const xhr = new XMLHttpRequest();

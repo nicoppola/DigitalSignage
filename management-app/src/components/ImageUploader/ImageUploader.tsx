@@ -36,12 +36,12 @@ const ImageUploader = ({
   };
 
   const handleFiles = (selectedFiles: File[]): void => {
-    const imageFiles = selectedFiles.filter((file) =>
-      file.type.startsWith("image/")
+    const mediaFiles = selectedFiles.filter((file) =>
+      file.type.startsWith("image/") || file.type.startsWith("video/")
     );
 
     // Remove duplicates
-    const newFiles = imageFiles.filter(
+    const newFiles = mediaFiles.filter(
       (newFile) =>
         !files.some(
           (existingFile) =>
@@ -147,15 +147,15 @@ const ImageUploader = ({
         tabIndex={0}
         aria-label="Upload files by dragging and dropping or clicking to select"
       >
-        <p>Drag & Drop images here, or click to select files</p>
+        <p>Drag & Drop images or videos here, or click to select files</p>
         <input
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           multiple
           onChange={handleFileChange}
           className="file-input"
           id="file-upload-input"
-          aria-label="Choose image files to upload"
+          aria-label="Choose image or video files to upload"
         />
       </div>
 

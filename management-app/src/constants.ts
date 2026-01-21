@@ -22,8 +22,8 @@ export type ApiEndpoint = typeof API_ENDPOINTS[keyof typeof API_ENDPOINTS];
  * Timeout values in milliseconds
  */
 export const TIMEOUTS = {
-  // XHR upload timeout - prevents hanging uploads
-  XHR_UPLOAD: 30000, // 30 seconds
+  // XHR upload timeout - allows time for video transcoding
+  XHR_UPLOAD: 300000, // 5 minutes
 
   // Status message display durations
   STATUS_MESSAGE_SHORT: 2000,   // 2 seconds - for quick confirmations

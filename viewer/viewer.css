@@ -30,7 +30,8 @@ body {
   justify-content: center;
 }
 
-.panel img {
+.panel img,
+.panel video {
   width: 100%;
   max-width: 100%;
   height: auto;
@@ -39,7 +40,8 @@ body {
   display: none;
 }
 
-.panel img.active {
+.panel img.active,
+.panel video.active {
   display: block;
 }
 

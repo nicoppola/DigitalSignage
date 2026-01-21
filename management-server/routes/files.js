@@ -5,27 +5,71 @@ const fs = require('fs');
 const fsp = require('fs').promises;
 const sharp = require('sharp');
 const { UPLOADS_DIR, sanitizeName, sanitizeFilename } = require('../utils/paths');
-const imageConfig = require('../config/imageConfig');
+const mediaConfig = require('../config/mediaConfig');
+const { transcodeVideo, isVideo, isImage } = require('../utils/videoProcessor');
 
 const router = express.Router();
+
+// Combine allowed types for multer filter
+const ALLOWED_MIME_TYPES = [
+  ...mediaConfig.ALLOWED_IMAGE_TYPES,
+  ...mediaConfig.ALLOWED_VIDEO_TYPES,
+];
+
+// Use larger limit for videos
+const MAX_FILE_SIZE = Math.max(mediaConfig.MAX_IMAGE_SIZE, mediaConfig.MAX_VIDEO_SIZE);
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: imageConfig.MAX_FILE_SIZE,
-    files: imageConfig.MAX_FILES,
+    fileSize: MAX_FILE_SIZE,
+    files: mediaConfig.MAX_FILES,
   },
   fileFilter: (req, file, cb) => {
-    if (imageConfig.ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+    if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'), false);
+      cb(new Error('Only image and video files are allowed'), false);
     }
   },
 });
 
-// POST /api/upload - Upload and process images
-router.post('/upload', upload.array('images'), async (req, res) => {
+// Process a single image file
+async function processImage(file, uploadPath) {
+  const outputFileName = file.originalname.replace(/\.[^/.]+$/, '.webp');
+  const outputPath = path.join(uploadPath, outputFileName);
+
+  const image = sharp(file.buffer).rotate();
+  const meta = await image.metadata();
+  const isPortrait = meta.height > meta.width;
+
+  await image
+    .resize(
+      isPortrait ? mediaConfig.PORTRAIT_WIDTH : mediaConfig.LANDSCAPE_WIDTH,
+      isPortrait ? mediaConfig.PORTRAIT_HEIGHT : mediaConfig.LANDSCAPE_HEIGHT,
+      {
+        fit: mediaConfig.RESIZE_FIT,
+        kernel: sharp.kernel.lanczos3,
+      }
+    )
+    .webp({ quality: mediaConfig.WEBP_QUALITY })
+    .toFile(outputPath);
+
+  return outputFileName;
+}
+
+// Process a single video file
+async function processVideo(file, uploadPath) {
+  const outputFileName = file.originalname.replace(/\.[^/.]+$/, '.mp4');
+  const outputPath = path.join(uploadPath, outputFileName);
+
+  await transcodeVideo(file.buffer, outputPath, mediaConfig);
+
+  return outputFileName;
+}
+
+// POST /api/upload - Upload and process media files
+router.post('/upload', upload.array('media'), async (req, res) => {
   if (!req.files || req.files.length === 0) {
     return res.status(400).json({ error: 'No files uploaded' });
   }
@@ -38,34 +82,23 @@ router.post('/upload', upload.array('images'), async (req, res) => {
   fs.mkdirSync(uploadPath, { recursive: true });
 
   try {
-    await Promise.all(req.files.map(async (file) => {
-      const outputFileName = file.originalname.replace(/\.[^/.]+$/, '.webp');
-      const outputPath = path.join(uploadPath, outputFileName);
-
-      const image = sharp(file.buffer).rotate();
-      const meta = await image.metadata();
-      const isPortrait = meta.height > meta.width;
-
-      await image
-        .resize(
-          isPortrait ? imageConfig.PORTRAIT_WIDTH : imageConfig.LANDSCAPE_WIDTH,
-          isPortrait ? imageConfig.PORTRAIT_HEIGHT : imageConfig.LANDSCAPE_HEIGHT,
-          {
-            fit: imageConfig.RESIZE_FIT,
-            kernel: sharp.kernel.lanczos3,
-          }
-        )
-        .webp({ quality: imageConfig.WEBP_QUALITY })
-        .toFile(outputPath);
+    const processedFiles = await Promise.all(req.files.map(async (file) => {
+      if (isVideo(file.mimetype)) {
+        return await processVideo(file, uploadPath);
+      } else if (isImage(file.mimetype)) {
+        return await processImage(file, uploadPath);
+      } else {
+        throw new Error(`Unsupported file type: ${file.mimetype}`);
+      }
     }));
 
     res.json({
-      message: 'Files uploaded and optimized successfully',
-      files: req.files.map(f => f.originalname.replace(/\.[^/.]+$/, '.webp'))
+      message: 'Files uploaded and processed successfully',
+      files: processedFiles
     });
   } catch (err) {
-    console.error('Image processing failed:', err);
-    res.status(500).json({ error: 'Failed to process images' });
+    console.error('Media processing failed:', err);
+    res.status(500).json({ error: 'Failed to process media files' });
   }
 });
 
