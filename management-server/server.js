@@ -72,7 +72,8 @@ app.use('/api', requireLogin, filesRoutes);
 app.use('/api', requireLogin, systemRoutes);
 app.use('/uploads', requireLogin, express.static(path.join(__dirname, 'uploads')));
 
-// Viewer route
+// Viewer routes - serve static files from viewer directory
+app.use('/viewer', express.static(path.join(__dirname, '../viewer')));
 app.get('/viewer', (req, res) => {
   res.sendFile(path.join(__dirname, '../viewer/viewer.html'));
 });

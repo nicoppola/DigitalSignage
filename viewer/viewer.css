@@ -1,0 +1,49 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  background-color: black;
+  color: white;
+  font-family: sans-serif;
+  overflow: hidden;
+}
+
+.container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+.panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  background-color: black;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel img {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  margin-bottom: 10px;
+  display: none;
+}
+
+.panel img.active {
+  display: block;
+}
+
+.message {
+  color: gray;
+  margin-top: 20px;
+}
