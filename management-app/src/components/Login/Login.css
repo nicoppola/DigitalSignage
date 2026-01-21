@@ -1,0 +1,42 @@
+/* ============================================
+   Login - Component Specific Styles
+   All shared styles moved to shared.css and index.css
+   ============================================ */
+
+.login-container {
+  max-width: 400px;
+  margin: 4rem auto;
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xl) var(--spacing-lg);
+  box-shadow: var(--shadow-default);
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.login-form label {
+  text-align: left;
+}
+
+.login-form button {
+  padding: 10px;
+  border-radius: var(--radius-sm);
+}
+
+.login-form button:disabled {
+  background-color: var(--color-border-default);
+  cursor: not-allowed;
+}
+
+.login-error {
+  color: var(--color-accent-danger);
+  font-weight: 600;
+  margin-top: 10px;
+  user-select: none;
+}

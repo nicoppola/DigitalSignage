@@ -1,29 +1,41 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useRef, DragEvent, ChangeEvent } from "react";
+import { fileAPI } from "../../services/api";
+import { logger } from "../../utils/logger.ts";
+import { DEFAULTS } from "../../constants.ts";
+import "../../shared.css";
 import "./ImageUploader.css";
 
-const ImageUploader = ({
-  folderName = "default-folder",
-  onUploadComplete = {},
-}) => {
-  const [files, setFiles] = useState([]);
-  const [previewUrls, setPreviewUrls] = useState([]);
-  const [fileStatus, setFileStatus] = useState([]); // pending | uploading | done
-  const [isUploading, setIsUploading] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(null);
-  const [progress, setProgress] = useState(0);
+interface ImageUploaderProps {
+  folderName?: string;
+  onUploadComplete?: () => void;
+}
 
-  const handleDrop = (e) => {
+type FileStatus = 'pending' | 'uploading' | 'done';
+
+const ImageUploader = ({
+  folderName = DEFAULTS.FOLDER_NAME,
+  onUploadComplete = () => {},
+}: ImageUploaderProps) => {
+  const [files, setFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [fileStatus, setFileStatus] = useState<FileStatus[]>([]);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [currentIndex, setCurrentIndex] = useState<number | null>(null);
+  const [progress, setProgress] = useState<number>(0);
+  const previewUrlsRef = useRef<string[]>([]);
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     const droppedFiles = Array.from(e.dataTransfer.files);
     handleFiles(droppedFiles);
   };
 
-  const handleFileChange = (e) => {
-    const selectedFiles = Array.from(e.target.files);
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    const selectedFiles = Array.from(e.target.files || []);
     handleFiles(selectedFiles);
   };
 
-  const handleFiles = (selectedFiles) => {
+  const handleFiles = (selectedFiles: File[]): void => {
     const imageFiles = selectedFiles.filter((file) =>
       file.type.startsWith("image/")
     );
@@ -42,21 +54,28 @@ const ImageUploader = ({
     setFiles(updatedFiles);
 
     // Status for new files = pending
-    setFileStatus((prev) => [...prev, ...newFiles.map(() => "pending")]);
+    setFileStatus((prev) => [...prev, ...newFiles.map(() => "pending" as FileStatus)]);
 
     const newPreviews = newFiles.map((file) => URL.createObjectURL(file));
-    setPreviewUrls((prev) => [...prev, ...newPreviews]);
+    const updatedPreviews = [...previewUrls, ...newPreviews];
+    setPreviewUrls(updatedPreviews);
+    previewUrlsRef.current = updatedPreviews;
   };
 
-  const handleRemove = (index) => {
-    URL.revokeObjectURL(previewUrls[index]);
+  const handleRemove = (index: number): void => {
+    const urlToRevoke = previewUrls[index];
+    if (urlToRevoke) {
+      URL.revokeObjectURL(urlToRevoke);
+    }
 
+    const updatedPreviews = previewUrls.filter((_, i) => i !== index);
     setFiles(files.filter((_, i) => i !== index));
-    setPreviewUrls(previewUrls.filter((_, i) => i !== index));
+    setPreviewUrls(updatedPreviews);
     setFileStatus(fileStatus.filter((_, i) => i !== index));
+    previewUrlsRef.current = updatedPreviews;
   };
 
-  const handleUpload = async () => {
+  const handleUpload = async (): Promise<void> => {
     if (files.length === 0) {
       alert("No files to upload!");
       return;
@@ -94,47 +113,27 @@ const ImageUploader = ({
       setFiles([]);
       setPreviewUrls([]);
       setFileStatus([]);
+      previewUrlsRef.current = [];
       onUploadComplete();
     } catch (err) {
-      console.error(err);
+      logger.error('Upload failed', err);
       setIsUploading(false);
       alert("Upload failed.");
     }
   };
 
-  const uploadSingleFile = (file, folderName) => {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      const formData = new FormData();
-
-      // MUST MATCH: upload.array("images")
-      formData.append("images", file);
-
-      xhr.open("POST", `/api/upload?folder=${encodeURIComponent(folderName)}`);
-
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const percent = Math.round((e.loaded / e.total) * 100);
-          setProgress(percent);
-        }
-      };
-
-      xhr.onload = () => {
-        if (xhr.status === 200) resolve();
-        else reject(new Error(xhr.responseText));
-      };
-
-      xhr.onerror = reject;
-
-      xhr.send(formData);
+  const uploadSingleFile = async (file: File, folderName: string): Promise<void> => {
+    return fileAPI.uploadFiles(folderName, [file], (percent) => {
+      setProgress(percent);
     });
   };
 
   useEffect(() => {
     return () => {
-      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+      // Cleanup all preview URLs when component unmounts
+      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [previewUrls]);
+  }, []); // Empty dependency array - only runs on mount/unmount
 
   return (
     <div className="upload-container">
@@ -144,6 +143,9 @@ const ImageUploader = ({
         onDragOver={(e) => e.preventDefault()}
         onDragEnter={(e) => e.preventDefault()}
         onDragLeave={(e) => e.preventDefault()}
+        role="button"
+        tabIndex={0}
+        aria-label="Upload files by dragging and dropping or clicking to select"
       >
         <p>Drag & Drop images here, or click to select files</p>
         <input
@@ -152,6 +154,8 @@ const ImageUploader = ({
           multiple
           onChange={handleFileChange}
           className="file-input"
+          id="file-upload-input"
+          aria-label="Choose image files to upload"
         />
       </div>
 
@@ -159,10 +163,13 @@ const ImageUploader = ({
         <div className="preview-section">
           <h3>Preview</h3>
 
-          <div className="previews">
+          <div className="previews" role="list" aria-label="Selected files for upload">
             {previewUrls.map((url, i) => (
-              <div key={i} className="preview-wrapper">
-                <img src={url} alt={`preview ${i}`} />
+              <div key={i} className="preview-wrapper" role="listitem">
+                <img
+                  src={url}
+                  alt={`Preview of ${files[i]?.name || `image ${i + 1}`}`}
+                />
 
                 <div className="file-info">
                   <span className="file-name">{files[i]?.name}</span>
@@ -172,17 +179,22 @@ const ImageUploader = ({
                     <button
                       className="remove-btn"
                       onClick={() => handleRemove(i)}
+                      aria-label={`Remove ${files[i]?.name}`}
                     >
                       ❌
                     </button>
                   )}
 
                   {fileStatus[i] === "uploading" && (
-                    <div className="small-spinner"></div>
+                    <div
+                      className="small-spinner"
+                      role="status"
+                      aria-label="Uploading file"
+                    ></div>
                   )}
 
                   {fileStatus[i] === "done" && (
-                    <span className="checkmark">✔</span>
+                    <span className="checkmark" role="status" aria-label="Upload complete">✔</span>
                   )}
                 </div>
 
@@ -197,18 +209,23 @@ const ImageUploader = ({
             ))}
           </div>
 
-          <button className="upload-btn" onClick={handleUpload} disabled={isUploading}>
+          <button
+            className="upload-btn"
+            onClick={handleUpload}
+            disabled={isUploading}
+            aria-label={`Upload ${files.length} file${files.length > 1 ? 's' : ''}`}
+          >
             Upload
           </button>
 
-          {isUploading && (
-            <div className="upload-status">
-              <div className="spinner"></div>
+          {isUploading && currentIndex !== null && (
+            <div className="upload-status" role="status" aria-live="polite">
+              <div className="spinner" aria-hidden="true"></div>
               <p>
                 Uploading {currentIndex + 1} / {files.length}
               </p>
               <p>{files[currentIndex]?.name}</p>
-              <p>{progress}%</p>
+              <p aria-label={`Upload progress: ${progress} percent`}>{progress}%</p>
             </div>
           )}
         </div>

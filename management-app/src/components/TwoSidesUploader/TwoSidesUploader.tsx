@@ -1,14 +1,21 @@
-import React from 'react'
-import FileList from './FileList';
-import { useState } from 'react'
-import ImageUploader from './ImageUploader'
-import './TwoSidesUploader.css'
-import ConfigPanel from './ConfigPanel';
+import { useState, useCallback } from 'react';
+import FileList from '../FileList/FileList.tsx';
+import ImageUploader from '../ImageUploader/ImageUploader.tsx';
+import ConfigPanel from '../ConfigPanel/ConfigPanel.tsx';
+import '../../shared.css';
+import './TwoSidesUploader.css';
 
 const TwoSidesUploader = () => {
+  const [leftRefresh, setLeftRefresh] = useState<number>(0);
+  const [rightRefresh, setRightRefresh] = useState<number>(0);
 
-  const [leftRefresh, setLeftRefresh] = useState(0);
-  const [rightRefresh, setRightRefresh] = useState(0);
+  const handleLeftUploadComplete = useCallback((): void => {
+    setLeftRefresh(prev => prev + 1);
+  }, []);
+
+  const handleRightUploadComplete = useCallback((): void => {
+    setRightRefresh(prev => prev + 1);
+  }, []);
 
   return (
     <div className="container side-container">
@@ -21,9 +28,9 @@ const TwoSidesUploader = () => {
 
         <div className="side">
           <h2>Upload</h2>
-          <ImageUploader 
+          <ImageUploader
             folderName="left"
-            onUploadComplete={() => setLeftRefresh(prev => prev + 1)}
+            onUploadComplete={handleLeftUploadComplete}
           />
         </div>
 
@@ -42,9 +49,9 @@ const TwoSidesUploader = () => {
 
         <div className="side">
           <h2>Upload</h2>
-          <ImageUploader 
+          <ImageUploader
             folderName="right"
-            onUploadComplete={() => setRightRefresh(prev => prev + 1)}
+            onUploadComplete={handleRightUploadComplete}
           />
         </div>
 
@@ -54,7 +61,7 @@ const TwoSidesUploader = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default TwoSidesUploader
+export default TwoSidesUploader;

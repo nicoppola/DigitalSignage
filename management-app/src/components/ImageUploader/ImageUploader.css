@@ -1,0 +1,104 @@
+/* ============================================
+   ImageUploader - Component Specific Styles
+   ============================================ */
+
+.upload-container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* ============================================
+   DROP ZONE (File Upload Area)
+   ============================================ */
+
+.drop-zone {
+  border: 2px dashed var(--color-border-default);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xl);
+  text-align: center;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  position: relative;
+  margin-bottom: var(--spacing-lg);
+}
+
+.drop-zone:hover {
+  background-color: var(--color-bg-hover);
+  border-color: var(--color-text-secondary);
+}
+
+.drop-zone p {
+  margin: 0;
+  font-size: 16px;
+  color: var(--color-text-secondary);
+  user-select: none;
+}
+
+/* Hidden file input overlay */
+.file-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* ============================================
+   FILE INFO
+   ============================================ */
+
+.file-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+}
+
+/* ============================================
+   UPLOAD STATUS INDICATORS
+   ============================================ */
+
+.small-spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--color-text-secondary);
+  border-top-color: var(--color-info);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-left: 6px;
+}
+
+.checkmark {
+  color: var(--color-success);
+  font-size: 20px;
+  margin-left: 6px;
+}
+
+.uploading-text {
+  font-size: 12px;
+  color: var(--color-info);
+  margin-top: 4px;
+}
+
+.done-text {
+  font-size: 12px;
+  color: var(--color-success);
+  margin-top: 4px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================
+   UPLOAD BUTTON
+   ============================================ */
+
+.upload-btn {
+  margin-top: 16px;
+}

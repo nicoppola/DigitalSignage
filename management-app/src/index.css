@@ -1,68 +1,233 @@
+/* ============================================
+   GLOBAL BASE STYLES & CSS VARIABLES
+   ============================================ */
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  /* Color System */
+  --color-bg-primary: #000000;
+  --color-bg-secondary: #212121;
+  --color-bg-tertiary: #1a1a1a;
+  --color-bg-hover: #333333;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #BDBDBD;
+  --color-text-tertiary: #888888;
 
+  --color-accent-primary: #D32F2F;
+  --color-accent-primary-hover: #C2185B;
+  --color-accent-danger: #FF5722;
+
+  --color-border-default: #757575;
+  --color-border-light: #cccccc;
+
+  --color-success: #4caf50;
+  --color-info: #3b82f6;
+  --color-info-hover: #2563eb;
+
+  /* Typography */
+  --font-primary: 'Roboto', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --font-heading: 'Bebas Neue', sans-serif;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 15px;
+  --spacing-lg: 20px;
+  --spacing-xl: 30px;
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+
+  /* Shadows */
+  --shadow-default: 0 4px 8px rgba(0, 0, 0, 0.5);
+
+  /* Transitions */
+  --transition-fast: 0.2s ease;
+  --transition-default: 0.3s ease;
+
+  /* Font Rendering */
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+/* ============================================
+   GLOBAL RESETS
+   ============================================ */
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  padding: 0;
+  font-family: var(--font-primary);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  line-height: 1.5;
   min-width: 320px;
   min-height: 100vh;
 }
 
+#root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
+  margin: 0 0 var(--spacing-lg) 0;
 }
 
+h2 {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  color: var(--color-accent-primary);
+  text-align: center;
+  margin: 0 0 var(--spacing-lg) 0;
+}
+
+h3 {
+  font-size: 1.2em;
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+/* ============================================
+   LINKS
+   ============================================ */
+
+a {
+  font-weight: 500;
+  color: var(--color-info);
+  text-decoration: none;
+  transition: color var(--transition-default);
+}
+
+a:hover {
+  color: var(--color-info-hover);
+}
+
+/* ============================================
+   BUTTONS - Shared Base Styles
+   ============================================ */
+
 button {
-  border-radius: 8px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--transition-default);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Primary Button (Red theme) */
+.btn-primary,
+button.upload-btn,
+button.config-btn {
+  background-color: var(--color-accent-primary);
+  color: var(--color-text-primary);
+  width: 100%;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+}
+
+.btn-primary:hover:not(:disabled),
+button.upload-btn:hover:not(:disabled),
+button.config-btn:hover:not(:disabled) {
+  background-color: var(--color-accent-primary-hover);
+}
+
+/* Secondary Button (Blue theme) */
+.btn-secondary {
+  background-color: var(--color-info);
+  color: var(--color-text-primary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-info-hover);
+}
+
+/* Default Button (Gray theme) */
+.btn-default {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
+  border-radius: var(--radius-md);
 }
-button:hover {
-  border-color: #646cff;
+
+.btn-default:hover:not(:disabled) {
+  border-color: var(--color-info);
 }
-button:focus,
-button:focus-visible {
+
+.btn-default:focus,
+.btn-default:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* Remove/Delete Button */
+button.remove-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--color-accent-primary);
+  transition: color var(--transition-default);
+}
+
+button.remove-btn:hover {
+  color: var(--color-accent-danger);
+}
+
+/* ============================================
+   FORM ELEMENTS
+   ============================================ */
+
+input[type="text"],
+input[type="password"],
+input[type="number"] {
+  font-family: inherit;
+  font-size: 16px;
+  padding: 10px;
+  border: 2px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  transition: border-color var(--transition-default), background-color var(--transition-default);
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus {
+  outline: none;
+  border-color: var(--color-accent-primary);
+  background-color: var(--color-bg-secondary);
+}
+
+label {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  user-select: none;
 }
