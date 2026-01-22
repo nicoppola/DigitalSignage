@@ -62,12 +62,12 @@ function rotateMedia(side) {
   // Remove active from current
   const currentEl = mediaElements[state[side].currentIndex];
   if (currentEl) {
-    currentEl.classList.remove('active');
-    // Pause video if it was playing
+    // Pause and reset video before removing active class to avoid showing first frame
     if (currentEl.tagName === 'VIDEO') {
       currentEl.pause();
       currentEl.currentTime = 0;
     }
+    currentEl.classList.remove('active');
   }
 
   // Advance index
@@ -148,6 +148,9 @@ function deactivateFullscreen() {
     });
   }
 
+  // Force reflow to ensure the other panel is visible
+  otherPanel.offsetHeight;
+
   fullscreenActive = false;
   fullscreenSide = null;
 
@@ -156,20 +159,39 @@ function deactivateFullscreen() {
 
 // Handle video ended event - advance to next media and reset timer
 function handleVideoEnded(side) {
+  const wasFullscreen = fullscreenActive && fullscreenSide === side;
+
+  // Hide the video immediately to prevent showing first frame during transition
+  const container = document.getElementById(`${side}-side`);
+  const endedVideo = container.querySelector('video.active');
+  if (endedVideo) {
+    endedVideo.classList.add('ended');
+  }
+
   // If this was a fullscreen video, exit fullscreen first
-  if (fullscreenActive && fullscreenSide === side) {
+  if (wasFullscreen) {
     deactivateFullscreen();
   }
 
   state[side].isPlayingVideo = false;
-  rotateMedia(side);
 
-  // Reset the rotation timer so next image gets full duration
-  clearInterval(state[side].rotateTimer);
-  state[side].rotateTimer = setInterval(
-    () => rotateMedia(side),
-    config[side].rotateIntervalSec * 1000
-  );
+  // Small delay after fullscreen to let CSS transitions settle
+  const rotateDelay = wasFullscreen ? 100 : 0;
+  setTimeout(() => {
+    rotateMedia(side);
+
+    // Remove ended class so CSS transitions work normally next time
+    if (endedVideo) {
+      endedVideo.classList.remove('ended');
+    }
+
+    // Reset the rotation timer so next image gets full duration
+    clearInterval(state[side].rotateTimer);
+    state[side].rotateTimer = setInterval(
+      () => rotateMedia(side),
+      config[side].rotateIntervalSec * 1000
+    );
+  }, rotateDelay);
 }
 
 // Preload an image and return a promise
@@ -222,6 +244,12 @@ async function renderMedia(side) {
       el.muted = true;  // Required for autoplay
       el.playsInline = true;
       el.addEventListener('ended', () => handleVideoEnded(side));
+      // Hide video just before it ends to prevent first-frame flash
+      el.addEventListener('timeupdate', function() {
+        if (this.duration - this.currentTime < 0.15) {
+          this.classList.add('ended');
+        }
+      });
     } else {
       el = document.createElement('img');
       el.src = src;

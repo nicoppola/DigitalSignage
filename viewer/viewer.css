@@ -48,6 +48,12 @@ body {
   opacity: 1;
 }
 
+/* Quick fade out when video ends */
+.panel video.ended {
+  opacity: 0 !important;
+  transition: opacity 0.15s ease-out !important;
+}
+
 .message {
   color: gray;
   margin-top: 20px;
