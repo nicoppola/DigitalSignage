@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const fsp = require('fs').promises;
 const sharp = require('sharp');
-const { UPLOADS_DIR, sanitizeName, sanitizeFilename } = require('../utils/paths');
+const { UPLOADS_DIR, sanitizeName, sanitizeFilename, getConfigPath } = require('../utils/paths');
 const mediaConfig = require('../config/mediaConfig');
 const { transcodeVideo, isVideo, isImage } = require('../utils/videoProcessor');
 
@@ -102,12 +102,40 @@ router.post('/upload', upload.array('media'), async (req, res) => {
   }
 });
 
+// Apply saved file order to disk files
+function applyFileOrder(diskFiles, savedOrder) {
+  if (!savedOrder || savedOrder.length === 0) {
+    return diskFiles;
+  }
+
+  const diskSet = new Set(diskFiles);
+  const orderedFiles = [];
+
+  // Add files in saved order (if they still exist on disk)
+  for (const file of savedOrder) {
+    if (diskSet.has(file)) {
+      orderedFiles.push(file);
+      diskSet.delete(file);
+    }
+  }
+
+  // Append new files not in saved order
+  for (const file of diskFiles) {
+    if (diskSet.has(file)) {
+      orderedFiles.push(file);
+    }
+  }
+
+  return orderedFiles;
+}
+
 // GET /api/files - List files in a folder
 router.get('/files', async (req, res) => {
   const folder = sanitizeName(req.query.folder || '');
   if (!folder) return res.status(400).json({ error: 'Folder name required' });
 
   const folderPath = path.join(UPLOADS_DIR, folder);
+  const configPath = getConfigPath(folder);
 
   try {
     const files = await fsp.readdir(folderPath);
@@ -121,7 +149,20 @@ router.get('/files', async (req, res) => {
     );
     const onlyFiles = fileChecks.filter(Boolean);
 
-    res.json({ files: onlyFiles });
+    // Try to read config for file order
+    let orderedFiles = onlyFiles;
+    try {
+      const configData = await fsp.readFile(configPath, 'utf8');
+      const config = JSON.parse(configData);
+
+      if (config.fileOrder && Array.isArray(config.fileOrder)) {
+        orderedFiles = applyFileOrder(onlyFiles, config.fileOrder);
+      }
+    } catch (configErr) {
+      // Config doesn't exist or is invalid - use disk order
+    }
+
+    res.json({ files: orderedFiles });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Could not read folder' });

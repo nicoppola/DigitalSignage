@@ -1,7 +1,23 @@
-import { useEffect, useState, MouseEvent } from 'react';
-import { fileAPI } from '../../services/api';
+import { useEffect, useState, useCallback } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { fileAPI, configAPI } from '../../services/api';
 import { logger } from '../../utils/logger.ts';
 import { validateFileListResponse } from '../../utils/validators.ts';
+import SortableFileCard from './SortableFileCard';
 import './FileList.css';
 
 interface FileListProps {
@@ -9,21 +25,74 @@ interface FileListProps {
   refreshTrigger: number;
 }
 
+interface SideConfig {
+  secondsBetweenImages?: number;
+  fileOrder?: string[];
+}
+
+// Helper function to apply saved order to disk files
+function applyFileOrder(diskFiles: string[], savedOrder?: string[]): string[] {
+  if (!savedOrder || savedOrder.length === 0) {
+    return diskFiles;
+  }
+
+  const diskSet = new Set(diskFiles);
+  const orderedFiles: string[] = [];
+
+  // Add files in saved order (if they still exist on disk)
+  for (const file of savedOrder) {
+    if (diskSet.has(file)) {
+      orderedFiles.push(file);
+      diskSet.delete(file);
+    }
+  }
+
+  // Append any new files not in saved order (at the end)
+  for (const file of diskFiles) {
+    if (diskSet.has(file)) {
+      orderedFiles.push(file);
+    }
+  }
+
+  return orderedFiles;
+}
+
 function FileList({ folderName, refreshTrigger }: FileListProps) {
   const [files, setFiles] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isReorderMode, setIsReorderMode] = useState<boolean>(false);
+  const [isSavingOrder, setIsSavingOrder] = useState<boolean>(false);
+  const [orderChanged, setOrderChanged] = useState<boolean>(false);
+  const [originalFiles, setOriginalFiles] = useState<string[]>([]);
+
+  // Configure sensors for drag-and-drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 }, // Prevent accidental drags
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     const loadFiles = async (): Promise<void> => {
       setError(null);
       try {
-        const data = await fileAPI.getFiles(folderName);
+        // Fetch both files and config in parallel
+        const filesData = await fileAPI.getFiles(folderName);
+        const configData: SideConfig = await configAPI.getConfig(folderName).catch(() => ({}));
 
-        // Validate response structure
-        const validated = validateFileListResponse(data);
-        setFiles(validated.files);
-        setSelectedFiles([]); // clear selection on refresh
+        const validated = validateFileListResponse(filesData);
+        const diskFiles = validated.files;
+
+        // Apply saved order if exists
+        const orderedFiles = applyFileOrder(diskFiles, configData.fileOrder);
+        setFiles(orderedFiles);
+        setOriginalFiles(orderedFiles);
+        setSelectedFiles([]);
+        setOrderChanged(false);
       } catch (err) {
         logger.error('Failed to load files', err);
         setError('Failed to load files. Please try again.');
@@ -52,16 +121,13 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
     if (!window.confirm(`Delete ${selectedFiles.length} selected file(s)?`)) return;
 
     try {
-      // Use Promise.allSettled to handle partial failures
       const results = await Promise.allSettled(
         selectedFiles.map(filename => fileAPI.deleteFile(folderName, filename))
       );
 
-      // Check which deletions succeeded
       const succeeded = results.filter(r => r.status === 'fulfilled');
       const failed = results.filter(r => r.status === 'rejected');
 
-      // Update file list with successfully deleted files removed
       if (succeeded.length > 0) {
         setFiles(files.filter(f => !selectedFiles.includes(f)));
         setSelectedFiles([]);
@@ -76,6 +142,53 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
     }
   };
 
+  // Handle drag end - reorder files
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setFiles((items) => {
+        const oldIndex = items.indexOf(active.id as string);
+        const newIndex = items.indexOf(over.id as string);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+      setOrderChanged(true);
+    }
+  }, []);
+
+  // Save the new order to server
+  const handleSaveOrder = async (): Promise<void> => {
+    setIsSavingOrder(true);
+    try {
+      // Fetch current config to preserve other settings
+      const currentConfig: SideConfig = await configAPI.getConfig(folderName).catch(() => ({}));
+      await configAPI.updateConfig(folderName, {
+        ...currentConfig,
+        fileOrder: files,
+      } as SideConfig);
+      setOrderChanged(false);
+      setOriginalFiles(files);
+      setIsReorderMode(false);
+    } catch (err) {
+      logger.error('Failed to save file order', err);
+      alert('Failed to save file order');
+    } finally {
+      setIsSavingOrder(false);
+    }
+  };
+
+  // Toggle reorder mode
+  const toggleReorderMode = (): void => {
+    if (isReorderMode && orderChanged) {
+      if (!window.confirm('Discard changes to file order?')) return;
+      // Restore original order
+      setFiles(originalFiles);
+      setOrderChanged(false);
+    }
+    setIsReorderMode(!isReorderMode);
+    setSelectedFiles([]);
+  };
+
   return (
     <div className="preview-section">
       {error && <div className="file-list-error" role="alert">{error}</div>}
@@ -84,52 +197,63 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
 
       {!error && files.length > 0 && (
         <>
-          <button
-            className="upload-btn delete-btn"
-            onClick={handleDeleteSelected}
-            aria-label={`Delete ${selectedFiles.length} selected file${selectedFiles.length !== 1 ? 's' : ''}`}
-            disabled={selectedFiles.length === 0}
-          >
-            Delete Selected
-          </button>
+          <div className="file-list-toolbar">
+            <button
+              className={`upload-btn reorder-btn${isReorderMode ? ' active' : ''}`}
+              onClick={toggleReorderMode}
+              aria-pressed={isReorderMode}
+              disabled={isSavingOrder}
+            >
+              {isReorderMode ? 'Exit Reorder' : 'Reorder'}
+            </button>
 
-          <div className="file-grid" role="list" aria-label={`${files.length} uploaded files`}>
-            {files.map((file) => {
-              const isSelected = selectedFiles.includes(file);
-              const isVideo = file.endsWith('.mp4') || file.endsWith('.webm') || file.endsWith('.mov');
+            {isReorderMode && orderChanged && (
+              <button
+                className="upload-btn save-order-btn"
+                onClick={handleSaveOrder}
+                disabled={isSavingOrder}
+              >
+                {isSavingOrder ? 'Saving...' : 'Save Order'}
+              </button>
+            )}
 
-              return (
-                <label
-                  key={file}
-                  className={`file-card${isSelected ? ' selected' : ''}`}
-                  role="listitem"
-                >
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleSelectFile(file)}
-                    className="file-checkbox"
-                    onClick={(e: MouseEvent<HTMLInputElement>) => e.stopPropagation()} // prevent label click toggling twice
-                    aria-label={`Select ${file}`}
-                  />
-                  {isVideo ? (
-                    <div className="file-thumbnail video-thumbnail">
-                      <span className="play-icon">▶</span>
-                    </div>
-                  ) : (
-                    <img
-                      src={`/uploads/${folderName}/${file}`}
-                      alt={`Thumbnail of ${file}`}
-                      className="file-thumbnail"
-                    />
-                  )}
-                  <span className="file-name">
-                    {file}
-                  </span>
-                </label>
-              );
-            })}
+            {!isReorderMode && (
+              <button
+                className="upload-btn delete-btn"
+                onClick={handleDeleteSelected}
+                aria-label={`Delete ${selectedFiles.length} selected file${selectedFiles.length !== 1 ? 's' : ''}`}
+                disabled={selectedFiles.length === 0}
+              >
+                Delete Selected
+              </button>
+            )}
           </div>
+
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={files} strategy={rectSortingStrategy}>
+              <div
+                className={`file-grid${isReorderMode ? ' reorder-mode' : ''}`}
+                role="list"
+                aria-label={`${files.length} uploaded files`}
+              >
+                {files.map((file) => (
+                  <SortableFileCard
+                    key={file}
+                    id={file}
+                    file={file}
+                    folderName={folderName}
+                    isSelected={selectedFiles.includes(file)}
+                    isReorderMode={isReorderMode}
+                    onToggleSelect={toggleSelectFile}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </>
       )}
     </div>

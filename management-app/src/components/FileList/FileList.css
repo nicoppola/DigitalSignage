@@ -1,9 +1,28 @@
-.delete-btn {
-  margin-left: auto;
-  margin-right: auto;
-  width: 75%;
+/* Toolbar layout */
+.file-list-toolbar {
+  display: flex;
+  gap: var(--spacing-sm);
   margin-bottom: var(--spacing-md);
+  width: 100%;
+  justify-content: center;
+}
+
+.delete-btn {
   background-color: var(--color-accent-danger);
+}
+
+/* Reorder mode button */
+.reorder-btn {
+  background-color: var(--color-accent-primary);
+}
+
+.reorder-btn.active {
+  background-color: var(--color-accent-warning, #f59e0b);
+}
+
+/* Save order button */
+.save-order-btn {
+  background-color: var(--color-accent-success, #22c55e);
 }
 
 .file-grid {
@@ -23,10 +42,38 @@
   cursor: pointer;
   user-select: none;
   position: relative;
+  background-color: var(--color-bg-secondary, #1a1a1a);
 }
 
 .file-card.selected {
   border-color: var(--color-accent-danger);
+}
+
+/* Reorder mode styles */
+.file-card.reorder-mode {
+  cursor: grab;
+  border: 2px dashed var(--color-border, #444);
+  padding: 5px;
+}
+
+.file-card.reorder-mode:hover {
+  border-color: var(--color-accent-primary);
+}
+
+.file-card.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+/* Drag handle */
+.drag-handle {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  cursor: grab;
+  user-select: none;
 }
 
 .file-checkbox {
