@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e  # Exit on any error
 
 echo ""
 echo "Installing Dependencies...."
@@ -34,6 +35,10 @@ echo ""
 echo "Adding Ram to GPU...."
 ./add_ram_to_gpu.sh
 
+echo ""
+echo "Configuring log rotation...."
+sudo mkdir -p /etc/systemd/journald.conf.d
+./setup_journald.sh
 
 echo "System will reboot in 5 seconds..."
 echo "ctrl c to stop"
