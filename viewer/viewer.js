@@ -62,12 +62,11 @@ function rotateMedia(side) {
   // Remove active from current
   const currentEl = mediaElements[state[side].currentIndex];
   if (currentEl) {
-    // Pause and reset video before removing active class to avoid showing first frame
+    currentEl.classList.remove('active');
     if (currentEl.tagName === 'VIDEO') {
       currentEl.pause();
       currentEl.currentTime = 0;
     }
-    currentEl.classList.remove('active');
   }
 
   // Advance index
@@ -79,6 +78,8 @@ function rotateMedia(side) {
   if (newEl) {
     newEl.classList.add('active');
     if (newEl.tagName === 'VIDEO') {
+      // Remove ended class from previous play
+      newEl.classList.remove('ended');
       state[side].isPlayingVideo = true;
 
       // Check if this video should be fullscreen
@@ -161,13 +162,6 @@ function deactivateFullscreen() {
 function handleVideoEnded(side) {
   const wasFullscreen = fullscreenActive && fullscreenSide === side;
 
-  // Hide the video immediately to prevent showing first frame during transition
-  const container = document.getElementById(`${side}-side`);
-  const endedVideo = container.querySelector('video.active');
-  if (endedVideo) {
-    endedVideo.classList.add('ended');
-  }
-
   // If this was a fullscreen video, exit fullscreen first
   if (wasFullscreen) {
     deactivateFullscreen();
@@ -179,11 +173,6 @@ function handleVideoEnded(side) {
   const rotateDelay = wasFullscreen ? 100 : 0;
   setTimeout(() => {
     rotateMedia(side);
-
-    // Remove ended class so CSS transitions work normally next time
-    if (endedVideo) {
-      endedVideo.classList.remove('ended');
-    }
 
     // Reset the rotation timer so next image gets full duration
     clearInterval(state[side].rotateTimer);
@@ -244,11 +233,20 @@ async function renderMedia(side) {
       el.muted = true;  // Required for autoplay
       el.playsInline = true;
       el.addEventListener('ended', () => handleVideoEnded(side));
-      // Hide video just before it ends to prevent first-frame flash
-      el.addEventListener('timeupdate', function() {
-        if (this.duration - this.currentTime < 0.15) {
-          this.classList.add('ended');
-        }
+      // Hide video before it ends to prevent first-frame flash
+      // Use polling for more precise timing than timeupdate
+      el.addEventListener('play', function() {
+        const video = this;
+        const checkEnd = () => {
+          if (video.paused || video.ended) return;
+          const timeLeft = video.duration - video.currentTime;
+          if (timeLeft < 0.25 && timeLeft > 0) {
+            video.classList.add('ended');
+          } else {
+            requestAnimationFrame(checkEnd);
+          }
+        };
+        requestAnimationFrame(checkEnd);
       });
     } else {
       el = document.createElement('img');
