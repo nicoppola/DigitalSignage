@@ -28,6 +28,7 @@ interface FileListProps {
 interface SideConfig {
   secondsBetweenImages?: number;
   fileOrder?: string[];
+  fullscreenVideos?: string[];
 }
 
 // Helper function to apply saved order to disk files
@@ -65,6 +66,7 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
   const [isSavingOrder, setIsSavingOrder] = useState<boolean>(false);
   const [orderChanged, setOrderChanged] = useState<boolean>(false);
   const [originalFiles, setOriginalFiles] = useState<string[]>([]);
+  const [fullscreenVideos, setFullscreenVideos] = useState<string[]>([]);
 
   // Configure sensors for drag-and-drop
   const sensors = useSensors(
@@ -93,6 +95,7 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
         setOriginalFiles(orderedFiles);
         setSelectedFiles([]);
         setOrderChanged(false);
+        setFullscreenVideos(configData.fullscreenVideos || []);
       } catch (err) {
         logger.error('Failed to load files', err);
         setError('Failed to load files. Please try again.');
@@ -189,6 +192,28 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
     setSelectedFiles([]);
   };
 
+  // Toggle fullscreen flag for a video
+  const toggleFullscreen = async (file: string): Promise<void> => {
+    const isCurrentlyFullscreen = fullscreenVideos.includes(file);
+    const newFullscreenVideos = isCurrentlyFullscreen
+      ? fullscreenVideos.filter(f => f !== file)
+      : [...fullscreenVideos, file];
+
+    setFullscreenVideos(newFullscreenVideos);
+
+    try {
+      const currentConfig: SideConfig = await configAPI.getConfig(folderName).catch(() => ({}));
+      await configAPI.updateConfig(folderName, {
+        ...currentConfig,
+        fullscreenVideos: newFullscreenVideos,
+      } as SideConfig);
+    } catch (err) {
+      logger.error('Failed to save fullscreen setting', err);
+      // Revert on error
+      setFullscreenVideos(fullscreenVideos);
+    }
+  };
+
   return (
     <div className="preview-section">
       {error && <div className="file-list-error" role="alert">{error}</div>}
@@ -248,7 +273,9 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
                     folderName={folderName}
                     isSelected={selectedFiles.includes(file)}
                     isReorderMode={isReorderMode}
+                    isFullscreen={fullscreenVideos.includes(file)}
                     onToggleSelect={toggleSelectFile}
+                    onToggleFullscreen={toggleFullscreen}
                   />
                 ))}
               </div>

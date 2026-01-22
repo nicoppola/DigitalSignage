@@ -13,9 +13,13 @@ const DEFAULT_CONFIG = {
 };
 
 const config = {
-  [SIDES.LEFT]: { rotateIntervalSec: DEFAULT_CONFIG.leftRotateIntervalSec, refreshIntervalSec: DEFAULT_CONFIG.refreshIntervalSec },
-  [SIDES.RIGHT]: { rotateIntervalSec: DEFAULT_CONFIG.rightRotateIntervalSec, refreshIntervalSec: DEFAULT_CONFIG.refreshIntervalSec }
+  [SIDES.LEFT]: { rotateIntervalSec: DEFAULT_CONFIG.leftRotateIntervalSec, refreshIntervalSec: DEFAULT_CONFIG.refreshIntervalSec, fullscreenVideos: [] },
+  [SIDES.RIGHT]: { rotateIntervalSec: DEFAULT_CONFIG.rightRotateIntervalSec, refreshIntervalSec: DEFAULT_CONFIG.refreshIntervalSec, fullscreenVideos: [] }
 };
+
+// Fullscreen state
+let fullscreenActive = false;
+let fullscreenSide = null;
 
 const state = {
   [SIDES.LEFT]: {
@@ -71,10 +75,17 @@ function rotateMedia(side) {
 
   // Add active to new and handle video playback
   const newEl = mediaElements[state[side].currentIndex];
+  const currentFile = media[state[side].currentIndex];
   if (newEl) {
     newEl.classList.add('active');
     if (newEl.tagName === 'VIDEO') {
       state[side].isPlayingVideo = true;
+
+      // Check if this video should be fullscreen
+      if (config[side].fullscreenVideos.includes(currentFile)) {
+        activateFullscreen(side);
+      }
+
       newEl.play().catch(err => {
         console.warn(`Could not autoplay video on ${side}:`, err);
         state[side].isPlayingVideo = false;
@@ -83,8 +94,73 @@ function rotateMedia(side) {
   }
 }
 
+// Activate fullscreen mode for a side
+function activateFullscreen(side) {
+  if (fullscreenActive) return;
+
+  fullscreenActive = true;
+  fullscreenSide = side;
+
+  const otherSide = side === SIDES.LEFT ? SIDES.RIGHT : SIDES.LEFT;
+  const activePanel = document.getElementById(`${side}-side`);
+  const otherPanel = document.getElementById(`${otherSide}-side`);
+
+  // Expand active panel, hide other
+  activePanel.classList.add('fullscreen');
+  otherPanel.classList.add('hidden');
+
+  // Pause other side's rotation timer
+  clearInterval(state[otherSide].rotateTimer);
+
+  // Pause other side's video if playing
+  const otherVideo = otherPanel.querySelector('video.active');
+  if (otherVideo) {
+    otherVideo.pause();
+  }
+
+  console.log(`[${side}] Fullscreen activated`);
+}
+
+// Deactivate fullscreen mode
+function deactivateFullscreen() {
+  if (!fullscreenActive) return;
+
+  const side = fullscreenSide;
+  const otherSide = side === SIDES.LEFT ? SIDES.RIGHT : SIDES.LEFT;
+  const activePanel = document.getElementById(`${side}-side`);
+  const otherPanel = document.getElementById(`${otherSide}-side`);
+
+  // Remove fullscreen classes
+  activePanel.classList.remove('fullscreen');
+  otherPanel.classList.remove('hidden');
+
+  // Resume other side's rotation timer
+  state[otherSide].rotateTimer = setInterval(
+    () => rotateMedia(otherSide),
+    config[otherSide].rotateIntervalSec * 1000
+  );
+
+  // Resume other side's video if it was playing
+  const otherVideo = otherPanel.querySelector('video.active');
+  if (otherVideo && state[otherSide].isPlayingVideo) {
+    otherVideo.play().catch(err => {
+      console.warn(`Could not resume video on ${otherSide}:`, err);
+    });
+  }
+
+  fullscreenActive = false;
+  fullscreenSide = null;
+
+  console.log(`[${side}] Fullscreen deactivated`);
+}
+
 // Handle video ended event - advance to next media and reset timer
 function handleVideoEnded(side) {
+  // If this was a fullscreen video, exit fullscreen first
+  if (fullscreenActive && fullscreenSide === side) {
+    deactivateFullscreen();
+  }
+
   state[side].isPlayingVideo = false;
   rotateMedia(side);
 
@@ -230,6 +306,7 @@ async function fetchSideConfig(side) {
     const serverConfig = await res.json();
 
     config[side].rotateIntervalSec = serverConfig.secondsBetweenImages ?? config[side].rotateIntervalSec;
+    config[side].fullscreenVideos = serverConfig.fullscreenVideos ?? [];
 
     updateTimers(side);
   } catch (err) {

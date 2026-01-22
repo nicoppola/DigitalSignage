@@ -8,7 +8,9 @@ interface SortableFileCardProps {
   folderName: string;
   isSelected: boolean;
   isReorderMode: boolean;
+  isFullscreen: boolean;
   onToggleSelect: (file: string) => void;
+  onToggleFullscreen: (file: string) => void;
 }
 
 function SortableFileCard({
@@ -17,7 +19,9 @@ function SortableFileCard({
   folderName,
   isSelected,
   isReorderMode,
+  isFullscreen,
   onToggleSelect,
+  onToggleFullscreen,
 }: SortableFileCardProps) {
   const {
     attributes,
@@ -69,6 +73,21 @@ function SortableFileCard({
         />
       )}
       <span className="file-name">{file}</span>
+
+      {/* Fullscreen toggle - only for videos, not in reorder mode */}
+      {isVideo && !isReorderMode && (
+        <button
+          className={`fullscreen-toggle${isFullscreen ? ' active' : ''}`}
+          onClick={(e: MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            onToggleFullscreen(file);
+          }}
+          title={isFullscreen ? 'Disable fullscreen' : 'Enable fullscreen'}
+          aria-label={`${isFullscreen ? 'Disable' : 'Enable'} fullscreen for ${file}`}
+        >
+          ⛶
+        </button>
+      )}
     </div>
   );
 }
