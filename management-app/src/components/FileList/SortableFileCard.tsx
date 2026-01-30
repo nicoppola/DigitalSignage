@@ -74,8 +74,8 @@ function SortableFileCard({
       )}
       <span className="file-name">{file}</span>
 
-      {/* Fullscreen toggle - only for videos, not in reorder mode */}
-      {isVideo && !isReorderMode && (
+      {/* Fullscreen toggle - not in reorder mode */}
+      {!isReorderMode && (
         <button
           className={`fullscreen-toggle${isFullscreen ? ' active' : ''}`}
           onClick={(e: MouseEvent<HTMLButtonElement>) => {

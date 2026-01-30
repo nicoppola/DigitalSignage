@@ -28,7 +28,7 @@ interface FileListProps {
 interface SideConfig {
   secondsBetweenImages?: number;
   fileOrder?: string[];
-  fullscreenVideos?: string[];
+  fullscreenMedia?: string[];
 }
 
 // Helper function to apply saved order to disk files
@@ -66,7 +66,7 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
   const [isSavingOrder, setIsSavingOrder] = useState<boolean>(false);
   const [orderChanged, setOrderChanged] = useState<boolean>(false);
   const [originalFiles, setOriginalFiles] = useState<string[]>([]);
-  const [fullscreenVideos, setFullscreenVideos] = useState<string[]>([]);
+  const [fullscreenMedia, setFullscreenVideos] = useState<string[]>([]);
 
   // Configure sensors for drag-and-drop
   const sensors = useSensors(
@@ -95,7 +95,7 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
         setOriginalFiles(orderedFiles);
         setSelectedFiles([]);
         setOrderChanged(false);
-        setFullscreenVideos(configData.fullscreenVideos || []);
+        setFullscreenVideos(configData.fullscreenMedia || []);
       } catch (err) {
         logger.error('Failed to load files', err);
         setError('Failed to load files. Please try again.');
@@ -194,10 +194,10 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
 
   // Toggle fullscreen flag for a video
   const toggleFullscreen = async (file: string): Promise<void> => {
-    const isCurrentlyFullscreen = fullscreenVideos.includes(file);
+    const isCurrentlyFullscreen = fullscreenMedia.includes(file);
     const newFullscreenVideos = isCurrentlyFullscreen
-      ? fullscreenVideos.filter(f => f !== file)
-      : [...fullscreenVideos, file];
+      ? fullscreenMedia.filter(f => f !== file)
+      : [...fullscreenMedia, file];
 
     setFullscreenVideos(newFullscreenVideos);
 
@@ -205,12 +205,12 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
       const currentConfig: SideConfig = await configAPI.getConfig(folderName).catch(() => ({}));
       await configAPI.updateConfig(folderName, {
         ...currentConfig,
-        fullscreenVideos: newFullscreenVideos,
+        fullscreenMedia: newFullscreenVideos,
       } as SideConfig);
     } catch (err) {
       logger.error('Failed to save fullscreen setting', err);
       // Revert on error
-      setFullscreenVideos(fullscreenVideos);
+      setFullscreenVideos(fullscreenMedia);
     }
   };
 
@@ -273,7 +273,7 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
                     folderName={folderName}
                     isSelected={selectedFiles.includes(file)}
                     isReorderMode={isReorderMode}
-                    isFullscreen={fullscreenVideos.includes(file)}
+                    isFullscreen={fullscreenMedia.includes(file)}
                     onToggleSelect={toggleSelectFile}
                     onToggleFullscreen={toggleFullscreen}
                   />

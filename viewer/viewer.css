@@ -29,6 +29,8 @@ body {
   align-items: center;
   justify-content: center;
   position: relative;
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
 }
 
 .panel img,
@@ -48,10 +50,11 @@ body {
   opacity: 1;
 }
 
-/* Quick fade out when video ends */
-.panel video.ended {
+/* Fade out when media ends (synced with panel transitions) */
+.panel video.ended,
+.panel img.ended {
   opacity: 0 !important;
-  transition: opacity 0.2s ease-out !important;
+  transition: opacity 0.3s ease-out !important;
 }
 
 .message {
@@ -59,7 +62,7 @@ body {
   margin-top: 20px;
 }
 
-/* Fullscreen video mode */
+/* Fullscreen media mode */
 .panel.fullscreen {
   position: absolute;
   left: 0;
@@ -72,7 +75,8 @@ body {
   padding: 0;
 }
 
-.panel.fullscreen video.active {
+.panel.fullscreen video.active,
+.panel.fullscreen img.active {
   width: 100%;
   height: 100%;
   max-width: 100%;
@@ -81,12 +85,10 @@ body {
   margin: 0;
 }
 
-/* Hide non-active media in fullscreen panel */
-.panel.fullscreen img,
-.panel.fullscreen video:not(.active) {
-  display: none;
-}
+/* Non-active media in fullscreen panel stays at opacity 0 (from base rule) */
+/* No display:none here - that would prevent fade-in transitions */
 
 .panel.hidden {
-  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
