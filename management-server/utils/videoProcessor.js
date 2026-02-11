@@ -4,6 +4,32 @@ const path = require('path');
 const os = require('os');
 
 /**
+ * Generate a thumbnail from a video file
+ * @param {string} videoPath - Path to the video file
+ * @param {string} thumbnailPath - Where to save the thumbnail
+ * @returns {Promise<string>} - The thumbnail path on success
+ */
+async function generateThumbnail(videoPath, thumbnailPath) {
+  return new Promise((resolve, reject) => {
+    ffmpeg(videoPath)
+      .screenshots({
+        timestamps: ['10%'], // Capture at 10% into the video (avoids black intros)
+        filename: path.basename(thumbnailPath),
+        folder: path.dirname(thumbnailPath),
+        size: '320x?', // 320px wide, maintain aspect ratio
+      })
+      .on('end', () => {
+        console.log(`[FFmpeg] Thumbnail generated: ${thumbnailPath}`);
+        resolve(thumbnailPath);
+      })
+      .on('error', (err) => {
+        console.error(`[FFmpeg] Thumbnail error: ${err.message}`);
+        reject(err);
+      });
+  });
+}
+
+/**
  * Transcode a video from disk to H.264/MP4 format optimized for Pi playback
  * @param {string} inputPath - Path to the input video file
  * @param {string} outputPath - Where to save the transcoded video
@@ -71,6 +97,7 @@ function isImage(mimetype) {
 
 module.exports = {
   transcodeVideoFromDisk,
+  generateThumbnail,
   isVideo,
   isImage,
 };

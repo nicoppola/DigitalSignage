@@ -102,3 +102,21 @@
 .upload-btn {
   margin-top: 16px;
 }
+
+/* ============================================
+   PREVIEW LOADING STATE
+   ============================================ */
+
+.preview-loading {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg-hover);
+  border-radius: var(--radius-sm);
+}
+
+.preview-loading .small-spinner {
+  margin-left: 0;
+}

@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { MouseEvent } from 'react';
+import { MouseEvent, useState } from 'react';
 
 interface SortableFileCardProps {
   id: string;
@@ -39,6 +39,7 @@ function SortableFileCard({
   };
 
   const isVideo = file.endsWith('.mp4') || file.endsWith('.webm') || file.endsWith('.mov');
+  const [thumbError, setThumbError] = useState(false);
 
   return (
     <div
@@ -61,15 +62,19 @@ function SortableFileCard({
       {isReorderMode && (
         <span className="drag-handle" aria-hidden="true">⋮⋮</span>
       )}
-      {isVideo ? (
+      {isVideo && thumbError ? (
         <div className="file-thumbnail video-thumbnail">
           <span className="play-icon">▶</span>
         </div>
       ) : (
         <img
-          src={`/uploads/${folderName}/${file}`}
+          src={isVideo
+            ? `/uploads/${folderName}/${file.replace(/\.(mp4|webm|mov)$/, '.thumb.jpg')}`
+            : `/uploads/${folderName}/${file}`
+          }
           alt={`Thumbnail of ${file}`}
           className="file-thumbnail"
+          onError={isVideo ? () => setThumbError(true) : undefined}
         />
       )}
       <span className="file-name">{file}</span>

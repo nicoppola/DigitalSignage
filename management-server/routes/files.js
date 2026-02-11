@@ -6,7 +6,7 @@ const fsp = require('fs').promises;
 const sharp = require('sharp');
 const { UPLOADS_DIR, sanitizeName, sanitizeFilename, getConfigPath } = require('../utils/paths');
 const mediaConfig = require('../config/mediaConfig');
-const { transcodeVideoFromDisk, isVideo, isImage } = require('../utils/videoProcessor');
+const { transcodeVideoFromDisk, generateThumbnail, isVideo, isImage } = require('../utils/videoProcessor');
 
 const router = express.Router();
 
@@ -86,12 +86,22 @@ async function processImage(file) {
 // Process a single video file (transcode to H.264 for Pi hardware decoding)
 async function processVideo(file) {
   const outputFileName = file.originalname.replace(/\.[^/.]+$/, '.mp4');
+  const thumbnailFileName = file.originalname.replace(/\.[^/.]+$/, '.thumb.jpg');
   // Output to parent folder (not .processing)
   const finalDir = path.dirname(path.dirname(file.path));
   const outputPath = path.join(finalDir, outputFileName);
+  const thumbnailPath = path.join(finalDir, thumbnailFileName);
 
   // Transcode from temp file to final output (temp file is deleted by transcoder)
   await transcodeVideoFromDisk(file.path, outputPath, mediaConfig);
+
+  // Generate thumbnail from the transcoded video
+  try {
+    await generateThumbnail(outputPath, thumbnailPath);
+  } catch (err) {
+    console.warn(`[Upload] Could not generate thumbnail for ${outputFileName}:`, err.message);
+    // Continue without thumbnail - not a fatal error
+  }
 
   return outputFileName;
 }
@@ -165,8 +175,8 @@ router.get('/files', async (req, res) => {
 
     const fileChecks = await Promise.all(
       files.map(async (file) => {
-        // Skip .processing folder
-        if (file === '.processing') return null;
+        // Skip .processing folder and thumbnail files
+        if (file === '.processing' || file.endsWith('.thumb.jpg')) return null;
         const fullPath = path.join(folderPath, file);
         const stat = await fsp.stat(fullPath);
         return stat.isFile() ? file : null;
@@ -218,6 +228,17 @@ router.delete('/files', async (req, res) => {
 
   try {
     await fsp.unlink(filePath);
+
+    // Also delete thumbnail if it exists (for videos)
+    if (filename.endsWith('.mp4')) {
+      const thumbnailPath = filePath.replace(/\.mp4$/, '.thumb.jpg');
+      try {
+        await fsp.unlink(thumbnailPath);
+      } catch (e) {
+        // Thumbnail may not exist, ignore
+      }
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error(err);

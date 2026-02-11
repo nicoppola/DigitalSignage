@@ -12,6 +12,77 @@ interface ImageUploaderProps {
 
 type FileStatus = 'pending' | 'uploading' | 'done';
 
+// Extract a frame from video as a thumbnail (avoids loading full video into memory)
+const getVideoThumbnail = (file: File): Promise<string> => {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    const canvas = document.createElement('canvas');
+    const tempUrl = URL.createObjectURL(file);
+    let resolved = false;
+
+    const cleanup = () => {
+      URL.revokeObjectURL(tempUrl);
+      video.src = '';
+      video.load();
+    };
+
+    const captureFrame = () => {
+      if (resolved) return;
+      resolved = true;
+
+      // Set canvas size to video dimensions (capped for memory)
+      const maxSize = 400;
+      const width = video.videoWidth || 320;
+      const height = video.videoHeight || 180;
+      const scale = Math.min(1, maxSize / Math.max(width, height));
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      }
+
+      const thumbnail = canvas.toDataURL('image/jpeg', 0.7);
+      cleanup();
+      resolve(thumbnail);
+    };
+
+    const handleError = () => {
+      if (resolved) return;
+      resolved = true;
+      cleanup();
+      resolve(''); // Empty string will show placeholder
+    };
+
+    // Timeout fallback in case events don't fire
+    setTimeout(() => {
+      if (!resolved) {
+        handleError();
+      }
+    }, 5000);
+
+    video.preload = 'auto';
+    video.muted = true;
+    video.playsInline = true;
+
+    // Only capture AFTER seeking completes - use small delay to ensure frame is rendered
+    video.onseeked = () => {
+      setTimeout(captureFrame, 100);
+    };
+    video.onerror = handleError;
+
+    video.src = tempUrl;
+    video.load();
+
+    // Seek past intro (often black) once metadata is loaded
+    video.onloadedmetadata = () => {
+      const seekTime = Math.min(2, video.duration * 0.1);
+      video.currentTime = seekTime > 0 ? seekTime : 0.5;
+    };
+  });
+};
+
 const ImageUploader = ({
   folderName = DEFAULTS.FOLDER_NAME,
   onUploadComplete = () => {},
@@ -37,7 +108,7 @@ const ImageUploader = ({
     handleFiles(selectedFiles);
   };
 
-  const handleFiles = (selectedFiles: File[]): void => {
+  const handleFiles = async (selectedFiles: File[]): Promise<void> => {
     const mediaFiles = selectedFiles.filter((file) =>
       file.type.startsWith("image/") || file.type.startsWith("video/")
     );
@@ -52,16 +123,45 @@ const ImageUploader = ({
         )
     );
 
+    if (newFiles.length === 0) return;
+
     const updatedFiles = [...files, ...newFiles];
     setFiles(updatedFiles);
 
     // Status for new files = pending
     setFileStatus((prev) => [...prev, ...newFiles.map(() => "pending" as FileStatus)]);
 
-    const newPreviews = newFiles.map((file) => URL.createObjectURL(file));
-    const updatedPreviews = [...previewUrls, ...newPreviews];
-    setPreviewUrls(updatedPreviews);
-    previewUrlsRef.current = updatedPreviews;
+    // Immediately show placeholders for all new files (empty string = loading state)
+    const startIndex = previewUrls.length;
+    const placeholders = newFiles.map(() => '');
+    const initialPreviews = [...previewUrls, ...placeholders];
+    setPreviewUrls(initialPreviews);
+    previewUrlsRef.current = initialPreviews;
+
+    // Generate previews asynchronously and update as each completes
+    newFiles.forEach((file, i) => {
+      const previewIndex = startIndex + i;
+
+      if (file.type.startsWith("video/")) {
+        getVideoThumbnail(file).then((thumbnail) => {
+          setPreviewUrls((prev) => {
+            const updated = [...prev];
+            updated[previewIndex] = thumbnail;
+            previewUrlsRef.current = updated;
+            return updated;
+          });
+        });
+      } else {
+        // Images load instantly
+        const url = URL.createObjectURL(file);
+        setPreviewUrls((prev) => {
+          const updated = [...prev];
+          updated[previewIndex] = url;
+          previewUrlsRef.current = updated;
+          return updated;
+        });
+      }
+    });
   };
 
   const handleRemove = (index: number): void => {
@@ -190,10 +290,16 @@ const ImageUploader = ({
           <div className="previews" role="list" aria-label="Selected files for upload">
             {previewUrls.map((url, i) => (
               <div key={i} className="preview-wrapper" role="listitem">
-                <img
-                  src={url}
-                  alt={`Preview of ${files[i]?.name || `image ${i + 1}`}`}
-                />
+                {url ? (
+                  <img
+                    src={url}
+                    alt={`Preview of ${files[i]?.name || `image ${i + 1}`}`}
+                  />
+                ) : (
+                  <div className="preview-loading" role="status" aria-label="Loading preview">
+                    <div className="small-spinner"></div>
+                  </div>
+                )}
 
                 <div className="file-info">
                   <span className="file-name">{files[i]?.name}</span>
