@@ -4,20 +4,15 @@ const path = require('path');
 const os = require('os');
 
 /**
- * Transcode a video to H.264/MP4 format
- * @param {Buffer} inputBuffer - The video file buffer
+ * Transcode a video from disk to H.264/MP4 format optimized for Pi playback
+ * @param {string} inputPath - Path to the input video file
  * @param {string} outputPath - Where to save the transcoded video
  * @param {object} config - Transcoding settings from mediaConfig
  * @returns {Promise<string>} - The output path on success
  */
-async function transcodeVideo(inputBuffer, outputPath, config) {
-  // Write buffer to temp file (ffmpeg needs file input)
-  const tempInput = path.join(os.tmpdir(), `input-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`);
-
-  await fs.promises.writeFile(tempInput, inputBuffer);
-
+async function transcodeVideoFromDisk(inputPath, outputPath, config) {
   return new Promise((resolve, reject) => {
-    ffmpeg(tempInput)
+    ffmpeg(inputPath)
       .videoCodec(config.VIDEO_CODEC)
       .addOptions([
         `-preset ${config.VIDEO_PRESET}`,
@@ -37,19 +32,19 @@ async function transcodeVideo(inputBuffer, outputPath, config) {
         }
       })
       .on('end', async () => {
-        // Clean up temp file
+        // Clean up input temp file
         try {
-          await fs.promises.unlink(tempInput);
+          await fs.promises.unlink(inputPath);
         } catch (e) {
-          console.warn(`[FFmpeg] Could not delete temp file: ${tempInput}`);
+          console.warn(`[FFmpeg] Could not delete temp file: ${inputPath}`);
         }
         console.log(`[FFmpeg] Transcode complete: ${outputPath}`);
         resolve(outputPath);
       })
       .on('error', async (err) => {
-        // Clean up temp file
+        // Clean up input temp file on error
         try {
-          await fs.promises.unlink(tempInput);
+          await fs.promises.unlink(inputPath);
         } catch (e) {
           // Ignore cleanup errors
         }
@@ -75,7 +70,7 @@ function isImage(mimetype) {
 }
 
 module.exports = {
-  transcodeVideo,
+  transcodeVideoFromDisk,
   isVideo,
   isImage,
 };

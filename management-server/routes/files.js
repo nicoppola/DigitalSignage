@@ -6,7 +6,7 @@ const fsp = require('fs').promises;
 const sharp = require('sharp');
 const { UPLOADS_DIR, sanitizeName, sanitizeFilename, getConfigPath } = require('../utils/paths');
 const mediaConfig = require('../config/mediaConfig');
-const { isVideo, isImage } = require('../utils/videoProcessor');
+const { transcodeVideoFromDisk, isVideo, isImage } = require('../utils/videoProcessor');
 
 const router = express.Router();
 
@@ -28,12 +28,8 @@ const storage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
-    // Use original name for videos, temp name for images (will be renamed after processing)
-    if (isVideo(file.mimetype)) {
-      cb(null, file.originalname);
-    } else {
-      cb(null, `temp-${Date.now()}-${file.originalname}`);
-    }
+    // Save all files with temp prefix - they get renamed/processed after upload
+    cb(null, `temp-${Date.now()}-${file.originalname}`);
   },
 });
 
@@ -79,6 +75,17 @@ async function processImage(file) {
   return outputFileName;
 }
 
+// Process a single video file (transcode to H.264 for Pi hardware decoding)
+async function processVideo(file) {
+  const outputFileName = file.originalname.replace(/\.[^/.]+$/, '.mp4');
+  const outputPath = path.join(path.dirname(file.path), outputFileName);
+
+  // Transcode from temp file to final output (temp file is deleted by transcoder)
+  await transcodeVideoFromDisk(file.path, outputPath, mediaConfig);
+
+  return outputFileName;
+}
+
 // POST /api/upload - Upload and process media files
 router.post('/upload', upload.array('media'), async (req, res) => {
   if (!req.files || req.files.length === 0) {
@@ -86,18 +93,17 @@ router.post('/upload', upload.array('media'), async (req, res) => {
   }
 
   try {
-    // Videos are already saved to disk by multer (no processing needed)
-    // Images need processing (resize + convert to webp)
-    const processedFiles = await Promise.all(req.files.map(async (file) => {
+    // Process files sequentially to avoid overloading Pi CPU
+    const processedFiles = [];
+    for (const file of req.files) {
       if (isVideo(file.mimetype)) {
-        // Video already saved directly to disk - just return the filename
-        return file.filename;
+        processedFiles.push(await processVideo(file));
       } else if (isImage(file.mimetype)) {
-        return await processImage(file);
+        processedFiles.push(await processImage(file));
       } else {
         throw new Error(`Unsupported file type: ${file.mimetype}`);
       }
-    }));
+    }
 
     res.json({
       message: 'Files uploaded and processed successfully',

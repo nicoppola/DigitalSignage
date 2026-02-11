@@ -42,8 +42,8 @@ module.exports = {
 
   // Video transcoding settings (H.264 for Pi 4 hardware decoding)
   VIDEO_CODEC: 'libx264',
-  VIDEO_PRESET: 'medium',   // balance speed/quality: ultrafast, fast, medium, slow
-  VIDEO_CRF: 23,            // quality (lower = better, 18-28 typical)
+  VIDEO_PRESET: 'ultrafast',  // fast encoding for Pi (larger file but quick)
+  VIDEO_CRF: 23,              // quality (lower = better, 18-28 typical)
   VIDEO_MAX_WIDTH: 1920,
   VIDEO_MAX_HEIGHT: 1080,
 };
