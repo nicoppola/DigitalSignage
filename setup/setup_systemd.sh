@@ -1,8 +1,11 @@
 #!/bin/bash
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Variables
 SERVICE_NAME="digitalsignage-server"
-SERVICE_FILE="digitalsignage-server.service"  # Local service file
+SERVICE_FILE="$SCRIPT_DIR/digitalsignage-server.service"
 DEST_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 
 # Copy the service file to systemd directory

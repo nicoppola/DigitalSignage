@@ -1,9 +1,12 @@
 #!/bin/bash
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Variables
 OVERRIDE_DIR="/etc/systemd/system/getty@tty1.service.d"
 OVERRIDE_FILE="$OVERRIDE_DIR/autologin.conf"
-LOCAL_FILE="autologin.conf"
+LOCAL_FILE="$SCRIPT_DIR/autologin.conf"
 
 # Create the directory for the override if it doesn't exist
 sudo mkdir -p "$OVERRIDE_DIR"
