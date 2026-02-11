@@ -60,6 +60,7 @@ function applyFileOrder(diskFiles: string[], savedOrder?: string[]): string[] {
 
 function FileList({ folderName, refreshTrigger }: FileListProps) {
   const [files, setFiles] = useState<string[]>([]);
+  const [processingFiles, setProcessingFiles] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isReorderMode, setIsReorderMode] = useState<boolean>(false);
@@ -93,6 +94,7 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
         const orderedFiles = applyFileOrder(diskFiles, configData.fileOrder);
         setFiles(orderedFiles);
         setOriginalFiles(orderedFiles);
+        setProcessingFiles(validated.processing);
         setSelectedFiles([]);
         setOrderChanged(false);
         setFullscreenVideos(configData.fullscreenMedia || []);
@@ -218,7 +220,14 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
     <div className="preview-section">
       {error && <div className="file-list-error" role="alert">{error}</div>}
 
-      {!error && files.length === 0 && <p>No files uploaded yet.</p>}
+      {processingFiles.length > 0 && (
+        <div className="processing-banner" role="status">
+          <span className="processing-spinner"></span>
+          Processing {processingFiles.length} file{processingFiles.length !== 1 ? 's' : ''}...
+        </div>
+      )}
+
+      {!error && files.length === 0 && processingFiles.length === 0 && <p>No files uploaded yet.</p>}
 
       {!error && files.length > 0 && (
         <>

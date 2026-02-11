@@ -5,6 +5,7 @@
 
 interface FileListResponse {
   files: string[];
+  processing: string[];
 }
 
 /**
@@ -31,7 +32,14 @@ export const validateFileListResponse = (data: unknown): FileListResponse => {
     (file): file is string => typeof file === 'string' && file.length > 0 && file.length < 256
   );
 
-  return { files: validFiles };
+  // Extract processing files (optional, defaults to empty array)
+  const processing = Array.isArray(responseData.processing)
+    ? responseData.processing.filter(
+        (file): file is string => typeof file === 'string' && file.length > 0 && file.length < 256
+      )
+    : [];
+
+  return { files: validFiles, processing };
 };
 
 interface ConfigResponse {

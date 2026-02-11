@@ -19,17 +19,19 @@ const ALLOWED_MIME_TYPES = [
 // Use larger limit for videos
 const MAX_FILE_SIZE = Math.max(mediaConfig.MAX_IMAGE_SIZE, mediaConfig.MAX_VIDEO_SIZE);
 
-// Use disk storage to stream files directly to disk (avoids memory issues on Pi)
+// Use disk storage - save to .processing subfolder during upload/transcoding
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const folder = req.query.folder && req.query.folder.trim() !== '' ? req.query.folder.trim() : '';
-    const uploadPath = folder ? path.join(UPLOADS_DIR, folder) : UPLOADS_DIR;
-    fs.mkdirSync(uploadPath, { recursive: true });
-    cb(null, uploadPath);
+    // Save to .processing subfolder so incomplete files don't appear in listings
+    const processingPath = folder
+      ? path.join(UPLOADS_DIR, folder, '.processing')
+      : path.join(UPLOADS_DIR, '.processing');
+    fs.mkdirSync(processingPath, { recursive: true });
+    cb(null, processingPath);
   },
   filename: (req, file, cb) => {
-    // Save all files with temp prefix - they get renamed/processed after upload
-    cb(null, `temp-${Date.now()}-${file.originalname}`);
+    cb(null, `${Date.now()}-${file.originalname}`);
   },
 });
 
@@ -48,10 +50,12 @@ const upload = multer({
   },
 });
 
-// Process a single image file (reads from disk, outputs to disk)
+// Process a single image file (reads from .processing, outputs to parent folder)
 async function processImage(file) {
   const outputFileName = file.originalname.replace(/\.[^/.]+$/, '.webp');
-  const outputPath = path.join(path.dirname(file.path), outputFileName);
+  // Output to parent folder (not .processing)
+  const finalDir = path.dirname(path.dirname(file.path));
+  const outputPath = path.join(finalDir, outputFileName);
 
   const image = sharp(file.path).rotate();
   const meta = await image.metadata();
@@ -82,7 +86,9 @@ async function processImage(file) {
 // Process a single video file (transcode to H.264 for Pi hardware decoding)
 async function processVideo(file) {
   const outputFileName = file.originalname.replace(/\.[^/.]+$/, '.mp4');
-  const outputPath = path.join(path.dirname(file.path), outputFileName);
+  // Output to parent folder (not .processing)
+  const finalDir = path.dirname(path.dirname(file.path));
+  const outputPath = path.join(finalDir, outputFileName);
 
   // Transcode from temp file to final output (temp file is deleted by transcoder)
   await transcodeVideoFromDisk(file.path, outputPath, mediaConfig);
@@ -159,6 +165,8 @@ router.get('/files', async (req, res) => {
 
     const fileChecks = await Promise.all(
       files.map(async (file) => {
+        // Skip .processing folder
+        if (file === '.processing') return null;
         const fullPath = path.join(folderPath, file);
         const stat = await fsp.stat(fullPath);
         return stat.isFile() ? file : null;
@@ -179,7 +187,21 @@ router.get('/files', async (req, res) => {
       // Config doesn't exist or is invalid - use disk order
     }
 
-    res.json({ files: orderedFiles });
+    // Check for files currently being processed
+    let processing = [];
+    try {
+      const processingPath = path.join(folderPath, '.processing');
+      const processingFiles = await fsp.readdir(processingPath);
+      processing = processingFiles.map(f => {
+        // Extract original filename from "timestamp-originalname"
+        const match = f.match(/^\d+-(.+)$/);
+        return match ? match[1].replace(/\.[^/.]+$/, '') : f;
+      });
+    } catch (e) {
+      // .processing folder doesn't exist, that's fine
+    }
+
+    res.json({ files: orderedFiles, processing });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Could not read folder' });

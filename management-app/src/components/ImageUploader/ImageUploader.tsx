@@ -222,10 +222,12 @@ const ImageUploader = ({
             <div className="upload-status" role="status" aria-live="polite">
               <div className="spinner" aria-hidden="true"></div>
               <p>
-                Uploading {currentIndex + 1} / {files.length}
+                {progress === 100 ? 'Processing' : 'Uploading'} {currentIndex + 1} / {files.length}
               </p>
               <p>{files[currentIndex]?.name}</p>
-              <p aria-label={`Upload progress: ${progress} percent`}>{progress}%</p>
+              <p aria-label={progress === 100 ? 'Processing file' : `Upload progress: ${progress} percent`}>
+                {progress === 100 ? 'Processing...' : `${progress}%`}
+              </p>
             </div>
           )}
         </div>
