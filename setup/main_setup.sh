@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Check if running as root/sudo
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run with sudo: sudo ./main_setup.sh"
+  exit 1
+fi
+
 echo ""
 echo "Installing Dependencies...."
 ./install_dependencies.sh
