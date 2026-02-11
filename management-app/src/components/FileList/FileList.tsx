@@ -166,7 +166,7 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
       );
 
       const succeeded = results.filter(r => r.status === 'fulfilled');
-      const failed = results.filter(r => r.status === 'rejected');
+      const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
 
       if (succeeded.length > 0) {
         setFiles(files.filter(f => !selectedFiles.includes(f)));
@@ -174,7 +174,15 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
       }
 
       if (failed.length > 0) {
-        alert(`Failed to delete ${failed.length} file(s)`);
+        // Check if any failure is an auth error
+        const authError = failed.find(r => r.reason && r.reason.isAuthError);
+        if (authError) {
+          alert(authError.reason.message || 'Session expired. Please refresh the page to log in again.');
+        } else {
+          const firstError = failed[0]?.reason;
+          const errorMessage = firstError instanceof Error ? firstError.message : `Failed to delete ${failed.length} file(s)`;
+          alert(errorMessage);
+        }
       }
     } catch (err) {
       logger.error('Error deleting files', err);
