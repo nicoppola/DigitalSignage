@@ -25,7 +25,8 @@ export const useReboot = (): UseRebootReturn => {
       alert(data.message);
     } catch (err) {
       logger.error('Reboot failed', err);
-      alert('Failed to reboot.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to reboot.';
+      alert(errorMessage);
     }
   };
 

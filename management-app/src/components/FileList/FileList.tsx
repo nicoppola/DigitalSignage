@@ -100,7 +100,9 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
         setFullscreenVideos(configData.fullscreenMedia || []);
       } catch (err) {
         logger.error('Failed to load files', err);
-        setError('Failed to load files. Please try again.');
+        // Show auth error message if session expired
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load files. Please try again.';
+        setError(errorMessage);
       }
     };
 
@@ -126,9 +128,14 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
           setFiles(orderedFiles);
           setOriginalFiles(orderedFiles);
         }
-      } catch (err) {
-        // Silently ignore polling errors - don't disrupt the UI
-        logger.error('Polling failed', err);
+      } catch (err: unknown) {
+        // Show auth errors, silently ignore other polling errors
+        if (err && typeof err === 'object' && 'isAuthError' in err) {
+          const errorMessage = err instanceof Error ? err.message : 'Session expired. Please refresh the page to log in again.';
+          setError(errorMessage);
+        } else {
+          logger.error('Polling failed', err);
+        }
       }
     }, 3000); // Poll every 3 seconds
 
@@ -171,7 +178,8 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
       }
     } catch (err) {
       logger.error('Error deleting files', err);
-      alert('Error deleting files');
+      const errorMessage = err instanceof Error ? err.message : 'Error deleting files';
+      alert(errorMessage);
     }
   };
 
@@ -204,7 +212,8 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
       setIsReorderMode(false);
     } catch (err) {
       logger.error('Failed to save file order', err);
-      alert('Failed to save file order');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save file order';
+      alert(errorMessage);
     } finally {
       setIsSavingOrder(false);
     }
@@ -241,6 +250,8 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
       logger.error('Failed to save fullscreen setting', err);
       // Revert on error
       setFullscreenVideos(fullscreenMedia);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save fullscreen setting';
+      alert(errorMessage);
     }
   };
 

@@ -65,7 +65,8 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
       }
     } catch (err) {
       logger.error('Update check failed', err);
-      setUpdateStatus('❌ Failed to check for updates.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to check for updates.';
+      setUpdateStatus(`❌ ${errorMessage}`);
       scheduleTimeout(() => setUpdateStatus(''), TIMEOUTS.UPDATE_ERROR);
     } finally {
       setChecking(false);

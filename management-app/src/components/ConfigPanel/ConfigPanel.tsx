@@ -41,6 +41,8 @@ const ConfigPanel = ({ side }: ConfigPanelProps) => {
         });
       } catch (err) {
         logger.error('Failed to fetch config', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load config.';
+        setStatus(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -74,7 +76,8 @@ const ConfigPanel = ({ side }: ConfigPanelProps) => {
       setStatus('Saved!');
     } catch (err) {
       logger.error('Failed to save config', err);
-      setStatus('Save failed.');
+      const errorMessage = err instanceof Error ? err.message : 'Save failed.';
+      setStatus(errorMessage);
     } finally {
       setSaving(false);
       scheduleTimeout(() => setStatus(null), TIMEOUTS.STATUS_MESSAGE_SHORT);
