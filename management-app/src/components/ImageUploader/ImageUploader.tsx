@@ -20,6 +20,7 @@ const ImageUploader = ({
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [fileStatus, setFileStatus] = useState<FileStatus[]>([]);
   const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [progress, setProgress] = useState<number>(0);
   const previewUrlsRef = useRef<string[]>([]);
@@ -106,6 +107,7 @@ const ImageUploader = ({
 
       // Cleanup after full completion
       setIsUploading(false);
+      setIsProcessing(false);
       setCurrentIndex(null);
       setProgress(0);
 
@@ -118,13 +120,19 @@ const ImageUploader = ({
     } catch (err) {
       logger.error('Upload failed', err);
       setIsUploading(false);
+      setIsProcessing(false);
       alert("Upload failed.");
     }
   };
 
   const uploadSingleFile = async (file: File, folderName: string): Promise<void> => {
+    setIsProcessing(false);
     return fileAPI.uploadFiles(folderName, [file], (percent) => {
       setProgress(percent);
+      // When upload bytes are complete, switch to processing state
+      if (percent >= 100) {
+        setIsProcessing(true);
+      }
     });
   };
 
@@ -222,11 +230,11 @@ const ImageUploader = ({
             <div className="upload-status" role="status" aria-live="polite">
               <div className="spinner" aria-hidden="true"></div>
               <p>
-                {progress === 100 ? 'Processing' : 'Uploading'} {currentIndex + 1} / {files.length}
+                {isProcessing ? 'Processing' : 'Uploading'} {currentIndex + 1} / {files.length}
               </p>
               <p>{files[currentIndex]?.name}</p>
-              <p aria-label={progress === 100 ? 'Processing file' : `Upload progress: ${progress} percent`}>
-                {progress === 100 ? 'Processing...' : `${progress}%`}
+              <p aria-label={isProcessing ? 'Processing file' : `Upload progress: ${progress} percent`}>
+                {isProcessing ? 'Processing...' : `${progress}%`}
               </p>
             </div>
           )}
