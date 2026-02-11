@@ -69,8 +69,12 @@ async function processImage(file) {
     .webp({ quality: mediaConfig.WEBP_QUALITY })
     .toFile(outputPath);
 
-  // Remove the temp file
-  await fsp.unlink(file.path);
+  // Remove the temp file (ignore if already gone)
+  try {
+    await fsp.unlink(file.path);
+  } catch (e) {
+    // File may already be deleted, ignore
+  }
 
   return outputFileName;
 }
