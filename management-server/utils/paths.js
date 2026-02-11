@@ -13,15 +13,15 @@ function sanitizeName(name) {
 }
 
 /**
- * Sanitize filename to prevent path traversal while allowing dots for extensions
+ * Sanitize filename to prevent path traversal while allowing dots and spaces
  * @param {string} filename - The filename to sanitize
- * @returns {string} Sanitized filename with only alphanumeric, dash, underscore, and dot
+ * @returns {string} Sanitized filename with only alphanumeric, dash, underscore, dot, and space
  */
 function sanitizeFilename(filename) {
   // Remove any path separators and parent directory references
   const basename = path.basename(filename);
-  // Allow alphanumeric, dash, underscore, and dot (for extensions)
-  return basename.replace(/[^a-zA-Z0-9-_.]/g, '');
+  // Allow alphanumeric, dash, underscore, dot, and space
+  return basename.replace(/[^a-zA-Z0-9-_. ]/g, '');
 }
 
 /**
