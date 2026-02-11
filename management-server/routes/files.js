@@ -6,7 +6,7 @@ const fsp = require('fs').promises;
 const sharp = require('sharp');
 const { UPLOADS_DIR, sanitizeName, sanitizeFilename, getConfigPath } = require('../utils/paths');
 const mediaConfig = require('../config/mediaConfig');
-const { transcodeVideo, isVideo, isImage } = require('../utils/videoProcessor');
+const { isVideo, isImage } = require('../utils/videoProcessor');
 
 const router = express.Router();
 
@@ -19,8 +19,26 @@ const ALLOWED_MIME_TYPES = [
 // Use larger limit for videos
 const MAX_FILE_SIZE = Math.max(mediaConfig.MAX_IMAGE_SIZE, mediaConfig.MAX_VIDEO_SIZE);
 
+// Use disk storage to stream files directly to disk (avoids memory issues on Pi)
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const folder = req.query.folder && req.query.folder.trim() !== '' ? req.query.folder.trim() : '';
+    const uploadPath = folder ? path.join(UPLOADS_DIR, folder) : UPLOADS_DIR;
+    fs.mkdirSync(uploadPath, { recursive: true });
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    // Use original name for videos, temp name for images (will be renamed after processing)
+    if (isVideo(file.mimetype)) {
+      cb(null, file.originalname);
+    } else {
+      cb(null, `temp-${Date.now()}-${file.originalname}`);
+    }
+  },
+});
+
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage,
   limits: {
     fileSize: MAX_FILE_SIZE,
     files: mediaConfig.MAX_FILES,
@@ -34,12 +52,12 @@ const upload = multer({
   },
 });
 
-// Process a single image file
-async function processImage(file, uploadPath) {
+// Process a single image file (reads from disk, outputs to disk)
+async function processImage(file) {
   const outputFileName = file.originalname.replace(/\.[^/.]+$/, '.webp');
-  const outputPath = path.join(uploadPath, outputFileName);
+  const outputPath = path.join(path.dirname(file.path), outputFileName);
 
-  const image = sharp(file.buffer).rotate();
+  const image = sharp(file.path).rotate();
   const meta = await image.metadata();
   const isPortrait = meta.height > meta.width;
 
@@ -55,15 +73,8 @@ async function processImage(file, uploadPath) {
     .webp({ quality: mediaConfig.WEBP_QUALITY })
     .toFile(outputPath);
 
-  return outputFileName;
-}
-
-// Process a single video file
-async function processVideo(file, uploadPath) {
-  const outputFileName = file.originalname.replace(/\.[^/.]+$/, '.mp4');
-  const outputPath = path.join(uploadPath, outputFileName);
-
-  await transcodeVideo(file.buffer, outputPath, mediaConfig);
+  // Remove the temp file
+  await fsp.unlink(file.path);
 
   return outputFileName;
 }
@@ -74,19 +85,15 @@ router.post('/upload', upload.array('media'), async (req, res) => {
     return res.status(400).json({ error: 'No files uploaded' });
   }
 
-  const folder = req.query.folder && req.query.folder.trim() !== '' ? req.query.folder.trim() : '';
-  const uploadPath = folder
-    ? path.join(UPLOADS_DIR, folder)
-    : UPLOADS_DIR;
-
-  fs.mkdirSync(uploadPath, { recursive: true });
-
   try {
+    // Videos are already saved to disk by multer (no processing needed)
+    // Images need processing (resize + convert to webp)
     const processedFiles = await Promise.all(req.files.map(async (file) => {
       if (isVideo(file.mimetype)) {
-        return await processVideo(file, uploadPath);
+        // Video already saved directly to disk - just return the filename
+        return file.filename;
       } else if (isImage(file.mimetype)) {
-        return await processImage(file, uploadPath);
+        return await processImage(file);
       } else {
         throw new Error(`Unsupported file type: ${file.mimetype}`);
       }
