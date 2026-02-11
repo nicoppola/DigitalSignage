@@ -24,6 +24,7 @@ const ImageUploader = ({
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [progress, setProgress] = useState<number>(0);
   const previewUrlsRef = useRef<string[]>([]);
+  const isProcessingRef = useRef<boolean>(false);
 
   const handleDrop = (e: DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
@@ -108,6 +109,7 @@ const ImageUploader = ({
       // Cleanup after full completion
       setIsUploading(false);
       setIsProcessing(false);
+      isProcessingRef.current = false;
       setCurrentIndex(null);
       setProgress(0);
 
@@ -119,19 +121,33 @@ const ImageUploader = ({
       onUploadComplete();
     } catch (err) {
       logger.error('Upload failed', err);
+
+      // Check if we were in processing phase before resetting state
+      const wasProcessing = isProcessingRef.current;
+
       setIsUploading(false);
       setIsProcessing(false);
-      alert("Upload failed.");
+      isProcessingRef.current = false;
+
+      // If we were in processing phase, the upload already completed - server is still working
+      if (wasProcessing) {
+        alert("File will continue processing in the background. Refresh to see when it's ready.");
+      } else {
+        const errorMessage = err instanceof Error ? err.message : "Upload failed.";
+        alert(errorMessage);
+      }
     }
   };
 
   const uploadSingleFile = async (file: File, folderName: string): Promise<void> => {
     setIsProcessing(false);
+    isProcessingRef.current = false;
     return fileAPI.uploadFiles(folderName, [file], (percent) => {
       setProgress(percent);
       // When upload bytes are complete, switch to processing state
       if (percent >= 100) {
         setIsProcessing(true);
+        isProcessingRef.current = true;
       }
     });
   };

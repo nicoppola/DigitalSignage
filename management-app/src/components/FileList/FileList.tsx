@@ -107,6 +107,34 @@ function FileList({ folderName, refreshTrigger }: FileListProps) {
     loadFiles();
   }, [folderName, refreshTrigger]);
 
+  // Poll for processing status when files are being processed
+  useEffect(() => {
+    if (processingFiles.length === 0) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const filesData = await fileAPI.getFiles(folderName);
+        const validated = validateFileListResponse(filesData);
+
+        // Update processing files
+        setProcessingFiles(validated.processing);
+
+        // If processing completed, update the file list
+        if (validated.processing.length < processingFiles.length) {
+          const configData: SideConfig = await configAPI.getConfig(folderName).catch(() => ({}));
+          const orderedFiles = applyFileOrder(validated.files, configData.fileOrder);
+          setFiles(orderedFiles);
+          setOriginalFiles(orderedFiles);
+        }
+      } catch (err) {
+        // Silently ignore polling errors - don't disrupt the UI
+        logger.error('Polling failed', err);
+      }
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [folderName, processingFiles.length]);
+
   const toggleSelectFile = (file: string): void => {
     setSelectedFiles(prev => {
       if (prev.includes(file)) {

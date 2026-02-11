@@ -17,6 +17,12 @@ const defaultOptions = {
  */
 async function handleResponse(response) {
   if (!response.ok) {
+    if (response.status === HTTP_STATUS.UNAUTHORIZED) {
+      const error = new Error('Session expired. Please refresh the page to log in again.');
+      error.isAuthError = true;
+      error.response = response;
+      throw error;
+    }
     const error = new Error(`HTTP error! status: ${response.status}`);
     error.response = response;
     throw error;
@@ -203,6 +209,10 @@ export const fileAPI = {
           } catch (err) {
             reject(new Error('Failed to parse upload response'));
           }
+        } else if (xhr.status === HTTP_STATUS.UNAUTHORIZED) {
+          const error = new Error('Session expired. Please refresh the page to log in again.');
+          error.isAuthError = true;
+          reject(error);
         } else {
           reject(new Error(`Upload failed with status: ${xhr.status}`));
         }
