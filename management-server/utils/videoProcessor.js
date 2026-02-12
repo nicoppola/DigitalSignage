@@ -11,13 +11,12 @@ const os = require('os');
  */
 async function generateThumbnail(videoPath, thumbnailPath) {
   return new Promise((resolve, reject) => {
+    // Use direct ffmpeg command: seek to 2 seconds, grab 1 frame
     ffmpeg(videoPath)
-      .screenshots({
-        timestamps: ['10%'], // Capture at 10% into the video (avoids black intros)
-        filename: path.basename(thumbnailPath),
-        folder: path.dirname(thumbnailPath),
-        size: '320x?', // 320px wide, maintain aspect ratio
-      })
+      .seekInput(2) // Seek to 2 seconds (avoids black intros)
+      .frames(1)    // Capture just 1 frame
+      .size('320x?') // 320px wide, maintain aspect ratio
+      .output(thumbnailPath)
       .on('end', () => {
         console.log(`[FFmpeg] Thumbnail generated: ${thumbnailPath}`);
         resolve(thumbnailPath);
@@ -25,7 +24,8 @@ async function generateThumbnail(videoPath, thumbnailPath) {
       .on('error', (err) => {
         console.error(`[FFmpeg] Thumbnail error: ${err.message}`);
         reject(err);
-      });
+      })
+      .run();
   });
 }
 
@@ -34,9 +34,10 @@ async function generateThumbnail(videoPath, thumbnailPath) {
  * @param {string} inputPath - Path to the input video file
  * @param {string} outputPath - Where to save the transcoded video
  * @param {object} config - Transcoding settings from mediaConfig
+ * @param {function} onProgress - Optional callback for progress updates (percent)
  * @returns {Promise<string>} - The output path on success
  */
-async function transcodeVideoFromDisk(inputPath, outputPath, config) {
+async function transcodeVideoFromDisk(inputPath, outputPath, config, onProgress) {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
       .videoCodec(config.VIDEO_CODEC)
@@ -55,6 +56,9 @@ async function transcodeVideoFromDisk(inputPath, outputPath, config) {
       .on('progress', (progress) => {
         if (progress.percent) {
           console.log(`[FFmpeg] Progress: ${Math.round(progress.percent)}%`);
+          if (onProgress) {
+            onProgress(progress.percent);
+          }
         }
       })
       .on('end', async () => {

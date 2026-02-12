@@ -182,6 +182,15 @@ export const fileAPI = {
    * @param {Function} onProgress - Progress callback (index, percent)
    * @returns {Promise<Array<{file: string, success: boolean, message: string}>>}
    */
+  /**
+   * Get processing progress for all files currently being transcoded
+   * @returns {Promise<Object>} Map of filename -> { percent, stage }
+   */
+  async getProcessingProgress() {
+    const response = await fetch(API_ENDPOINTS.PROCESSING_PROGRESS, defaultOptions);
+    return handleResponse(response);
+  },
+
   uploadFiles(side, files, onProgress) {
     return new Promise((resolve, reject) => {
       const formData = new FormData();
@@ -214,7 +223,16 @@ export const fileAPI = {
           error.isAuthError = true;
           reject(error);
         } else {
-          reject(new Error(`Upload failed with status: ${xhr.status}`));
+          // Try to parse error response for detailed message
+          try {
+            const errorData = JSON.parse(xhr.responseText);
+            const error = new Error(errorData.message || errorData.error || `Upload failed with status: ${xhr.status}`);
+            error.code = errorData.code;
+            error.status = xhr.status;
+            reject(error);
+          } catch {
+            reject(new Error(`Upload failed with status: ${xhr.status}`));
+          }
         }
       });
 

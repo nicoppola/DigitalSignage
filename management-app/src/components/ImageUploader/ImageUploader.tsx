@@ -10,7 +10,7 @@ interface ImageUploaderProps {
   onUploadComplete?: () => void;
 }
 
-type FileStatus = 'pending' | 'uploading' | 'done';
+type FileStatus = 'pending' | 'uploading' | 'done' | 'error';
 
 // Extract a frame from video as a thumbnail (avoids loading full video into memory)
 const getVideoThumbnail = (file: File): Promise<string> => {
@@ -90,12 +90,16 @@ const ImageUploader = ({
   const [files, setFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [fileStatus, setFileStatus] = useState<FileStatus[]>([]);
+  const [fileErrors, setFileErrors] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [progress, setProgress] = useState<number>(0);
+  const [processingProgress, setProcessingProgress] = useState<number>(0);
+  const [processingStage, setProcessingStage] = useState<string>('transcoding');
   const previewUrlsRef = useRef<string[]>([]);
   const isProcessingRef = useRef<boolean>(false);
+  const currentFileRef = useRef<string>('');
 
   const handleDrop = (e: DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
@@ -130,6 +134,7 @@ const ImageUploader = ({
 
     // Status for new files = pending
     setFileStatus((prev) => [...prev, ...newFiles.map(() => "pending" as FileStatus)]);
+    setFileErrors((prev) => [...prev, ...newFiles.map(() => "")]);
 
     // Immediately show placeholders for all new files (empty string = loading state)
     const startIndex = previewUrls.length;
@@ -174,6 +179,7 @@ const ImageUploader = ({
     setFiles(files.filter((_, i) => i !== index));
     setPreviewUrls(updatedPreviews);
     setFileStatus(fileStatus.filter((_, i) => i !== index));
+    setFileErrors(fileErrors.filter((_, i) => i !== index));
     previewUrlsRef.current = updatedPreviews;
   };
 
@@ -186,17 +192,19 @@ const ImageUploader = ({
     setIsUploading(true);
     setCurrentIndex(0);
 
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
+    let hasErrors = false;
 
-        setCurrentIndex(i);
-        setFileStatus((prev) => {
-          const copy = [...prev];
-          copy[i] = "uploading";
-          return copy;
-        });
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
 
+      setCurrentIndex(i);
+      setFileStatus((prev) => {
+        const copy = [...prev];
+        copy[i] = "uploading";
+        return copy;
+      });
+
+      try {
         await uploadSingleFile(file, folderName);
 
         setFileStatus((prev) => {
@@ -204,44 +212,71 @@ const ImageUploader = ({
           copy[i] = "done";
           return copy;
         });
+      } catch (err: unknown) {
+        logger.error(`Upload failed for ${file.name}`, err);
+        hasErrors = true;
+
+        // Parse error message
+        let errorMsg = "Upload failed";
+        const error = err as Error & { code?: string; status?: number };
+        if (error.code === 'FILE_TOO_LARGE' || error.status === 413) {
+          errorMsg = "Too large";
+        } else if (error.message?.includes('timeout')) {
+          errorMsg = "Timeout";
+        } else if (error.message) {
+          errorMsg = error.message.length > 30 ? "Failed" : error.message;
+        }
+
+        setFileStatus((prev) => {
+          const copy = [...prev];
+          copy[i] = "error";
+          return copy;
+        });
+        setFileErrors((prev) => {
+          const copy = [...prev];
+          copy[i] = errorMsg;
+          return copy;
+        });
+
+        // Reset processing state and continue to next file
+        setIsProcessing(false);
+        isProcessingRef.current = false;
       }
+    }
 
-      // Cleanup after full completion
-      setIsUploading(false);
-      setIsProcessing(false);
-      isProcessingRef.current = false;
-      setCurrentIndex(null);
-      setProgress(0);
+    // Cleanup after all files processed
+    setIsUploading(false);
+    setIsProcessing(false);
+    isProcessingRef.current = false;
+    setCurrentIndex(null);
+    setProgress(0);
 
+    // If no errors, clear everything and call onUploadComplete
+    if (!hasErrors) {
       previewUrls.forEach((url) => URL.revokeObjectURL(url));
       setFiles([]);
       setPreviewUrls([]);
       setFileStatus([]);
+      setFileErrors([]);
       previewUrlsRef.current = [];
       onUploadComplete();
-    } catch (err) {
-      logger.error('Upload failed', err);
-
-      // Check if we were in processing phase before resetting state
-      const wasProcessing = isProcessingRef.current;
-
-      setIsUploading(false);
-      setIsProcessing(false);
-      isProcessingRef.current = false;
-
-      // If we were in processing phase, the upload already completed - server is still working
-      if (wasProcessing) {
-        alert("File will continue processing in the background. Refresh to see when it's ready.");
-      } else {
-        const errorMessage = err instanceof Error ? err.message : "Upload failed.";
-        alert(errorMessage);
-      }
+    } else {
+      // Keep failed files visible, call onUploadComplete for successful ones
+      onUploadComplete();
     }
   };
 
   const uploadSingleFile = async (file: File, folderName: string): Promise<void> => {
     setIsProcessing(false);
     isProcessingRef.current = false;
+    setProcessingProgress(0);
+    setProcessingStage('transcoding');
+
+    // Track the output filename (server converts to .mp4 for videos, .webp for images)
+    const isVideo = file.type.startsWith('video/');
+    const outputName = file.name.replace(/\.[^/.]+$/, isVideo ? '.mp4' : '.webp');
+    currentFileRef.current = outputName;
+
     return fileAPI.uploadFiles(folderName, [file], (percent) => {
       setProgress(percent);
       // When upload bytes are complete, switch to processing state
@@ -251,6 +286,30 @@ const ImageUploader = ({
       }
     });
   };
+
+  // Poll for processing progress during transcoding
+  useEffect(() => {
+    if (!isProcessing || !currentFileRef.current) return;
+
+    const pollProgress = async () => {
+      try {
+        const progressData = await fileAPI.getProcessingProgress();
+        const fileProgress = progressData[currentFileRef.current];
+        if (fileProgress) {
+          setProcessingProgress(fileProgress.percent);
+          setProcessingStage(fileProgress.stage);
+        }
+      } catch (err) {
+        // Ignore polling errors
+      }
+    };
+
+    // Poll immediately and then every second
+    pollProgress();
+    const interval = setInterval(pollProgress, 1000);
+
+    return () => clearInterval(interval);
+  }, [isProcessing]);
 
   useEffect(() => {
     return () => {
@@ -326,6 +385,16 @@ const ImageUploader = ({
                   {fileStatus[i] === "done" && (
                     <span className="checkmark" role="status" aria-label="Upload complete">✔</span>
                   )}
+
+                  {fileStatus[i] === "error" && (
+                    <button
+                      className="remove-btn"
+                      onClick={() => handleRemove(i)}
+                      aria-label={`Remove failed file ${files[i]?.name}`}
+                    >
+                      ❌
+                    </button>
+                  )}
                 </div>
 
                 {/* STATUS TEXT */}
@@ -334,6 +403,9 @@ const ImageUploader = ({
                 )}
                 {fileStatus[i] === "done" && (
                   <p className="done-text">Uploaded</p>
+                )}
+                {fileStatus[i] === "error" && (
+                  <p className="error-text">{fileErrors[i] || "Failed"}</p>
                 )}
               </div>
             ))}
@@ -355,8 +427,11 @@ const ImageUploader = ({
                 {isProcessing ? 'Processing' : 'Uploading'} {currentIndex + 1} / {files.length}
               </p>
               <p>{files[currentIndex]?.name}</p>
-              <p aria-label={isProcessing ? 'Processing file' : `Upload progress: ${progress} percent`}>
-                {isProcessing ? 'Processing...' : `${progress}%`}
+              <p aria-label={isProcessing ? `Processing: ${processingProgress} percent` : `Upload progress: ${progress} percent`}>
+                {isProcessing
+                  ? `${processingStage === 'thumbnail' ? 'Generating thumbnail' : 'Transcoding'}... ${processingProgress}%`
+                  : `${progress}%`
+                }
               </p>
             </div>
           )}

@@ -7,6 +7,7 @@ const sharp = require('sharp');
 const { UPLOADS_DIR, sanitizeName, sanitizeFilename, getConfigPath } = require('../utils/paths');
 const mediaConfig = require('../config/mediaConfig');
 const { transcodeVideoFromDisk, generateThumbnail, isVideo, isImage } = require('../utils/videoProcessor');
+const { setProgress, getProgress, clearProgress, getAllProgress } = require('../utils/progressTracker');
 
 const router = express.Router();
 
@@ -31,7 +32,8 @@ const storage = multer.diskStorage({
     cb(null, processingPath);
   },
   filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
+    const safeFilename = sanitizeFilename(file.originalname);
+    cb(null, `${Date.now()}-${safeFilename}`);
   },
 });
 
@@ -52,7 +54,7 @@ const upload = multer({
 
 // Process a single image file (reads from .processing, outputs to parent folder)
 async function processImage(file) {
-  const outputFileName = file.originalname.replace(/\.[^/.]+$/, '.webp');
+  const outputFileName = sanitizeFilename(file.originalname).replace(/\.[^/.]+$/, '.webp');
   // Output to parent folder (not .processing)
   const finalDir = path.dirname(path.dirname(file.path));
   const outputPath = path.join(finalDir, outputFileName);
@@ -85,17 +87,23 @@ async function processImage(file) {
 
 // Process a single video file (transcode to H.264 for Pi hardware decoding)
 async function processVideo(file) {
-  const outputFileName = file.originalname.replace(/\.[^/.]+$/, '.mp4');
-  const thumbnailFileName = file.originalname.replace(/\.[^/.]+$/, '.thumb.jpg');
+  const outputFileName = sanitizeFilename(file.originalname).replace(/\.[^/.]+$/, '.mp4');
+  const thumbnailFileName = sanitizeFilename(file.originalname).replace(/\.[^/.]+$/, '.thumb.jpg');
   // Output to parent folder (not .processing)
   const finalDir = path.dirname(path.dirname(file.path));
   const outputPath = path.join(finalDir, outputFileName);
   const thumbnailPath = path.join(finalDir, thumbnailFileName);
 
+  // Track progress for this file
+  setProgress(outputFileName, 0, 'transcoding');
+
   // Transcode from temp file to final output (temp file is deleted by transcoder)
-  await transcodeVideoFromDisk(file.path, outputPath, mediaConfig);
+  await transcodeVideoFromDisk(file.path, outputPath, mediaConfig, (percent) => {
+    setProgress(outputFileName, percent, 'transcoding');
+  });
 
   // Generate thumbnail from the transcoded video
+  setProgress(outputFileName, 100, 'thumbnail');
   try {
     await generateThumbnail(outputPath, thumbnailPath);
   } catch (err) {
@@ -103,11 +111,45 @@ async function processVideo(file) {
     // Continue without thumbnail - not a fatal error
   }
 
+  // Clear progress when done
+  clearProgress(outputFileName);
+
   return outputFileName;
 }
 
+// Helper to format file size
+function formatFileSize(bytes) {
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)}GB`;
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)}MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)}KB`;
+  return `${bytes}B`;
+}
+
 // POST /api/upload - Upload and process media files
-router.post('/upload', upload.array('media'), async (req, res) => {
+router.post('/upload', (req, res, next) => {
+  upload.array('media')(req, res, (err) => {
+    if (err) {
+      // Handle multer errors (file too large, etc.)
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        const maxSize = formatFileSize(MAX_FILE_SIZE);
+        return res.status(413).json({
+          error: 'File too large',
+          message: `File exceeds maximum size of ${maxSize}`,
+          code: 'FILE_TOO_LARGE'
+        });
+      }
+      if (err.message === 'Only image and video files are allowed') {
+        return res.status(400).json({
+          error: 'Invalid file type',
+          message: err.message,
+          code: 'INVALID_FILE_TYPE'
+        });
+      }
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   if (!req.files || req.files.length === 0) {
     return res.status(400).json({ error: 'No files uploaded' });
   }
@@ -216,6 +258,11 @@ router.get('/files', async (req, res) => {
     console.error(err);
     res.status(500).json({ error: 'Could not read folder' });
   }
+});
+
+// GET /api/processing-progress - Get transcoding progress for all files
+router.get('/processing-progress', (req, res) => {
+  res.json(getAllProgress());
 });
 
 // DELETE /api/files - Delete a file

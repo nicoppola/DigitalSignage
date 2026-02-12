@@ -14,6 +14,7 @@ export const API_ENDPOINTS = {
   CONFIG: '/config',
   FILES: '/api/files',
   UPLOAD: '/api/upload',
+  PROCESSING_PROGRESS: '/api/processing-progress',
 } as const;
 
 export type ApiEndpoint = typeof API_ENDPOINTS[keyof typeof API_ENDPOINTS];
