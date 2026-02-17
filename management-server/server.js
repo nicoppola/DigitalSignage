@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
 
-const { CONFIGS_DIR } = require('./utils/paths');
+const { UPLOADS_DIR, CONFIGS_DIR } = require('./utils/paths');
 const { errorHandler } = require('./middleware/errorHandler');
 
 // Route modules
@@ -28,6 +28,33 @@ app.use(express.json());
 // Ensure configs directory exists
 if (!fs.existsSync(CONFIGS_DIR)) {
   fs.mkdirSync(CONFIGS_DIR, { recursive: true });
+}
+
+// Clean up stale .processing and .tmp files from previous runs
+try {
+  const folders = fs.readdirSync(UPLOADS_DIR).filter(f =>
+    fs.statSync(path.join(UPLOADS_DIR, f)).isDirectory() && f !== '.processing'
+  );
+  for (const folder of folders) {
+    // Remove .processing contents (incomplete uploads)
+    const procDir = path.join(UPLOADS_DIR, folder, '.processing');
+    if (fs.existsSync(procDir)) {
+      const staleFiles = fs.readdirSync(procDir);
+      for (const f of staleFiles) {
+        fs.unlinkSync(path.join(procDir, f));
+        console.log(`[Cleanup] Removed stale processing file: ${folder}/.processing/${f}`);
+      }
+    }
+    // Remove .tmp files (incomplete transcodes)
+    const folderPath = path.join(UPLOADS_DIR, folder);
+    const tmpFiles = fs.readdirSync(folderPath).filter(f => f.endsWith('.tmp'));
+    for (const f of tmpFiles) {
+      fs.unlinkSync(path.join(folderPath, f));
+      console.log(`[Cleanup] Removed stale temp file: ${folder}/${f}`);
+    }
+  }
+} catch (e) {
+  // uploads dir may not exist yet, that's fine
 }
 
 // Session middleware
@@ -91,6 +118,10 @@ app.get('/', (req, res) => {
 // Error handling
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
 });
+
+// Allow long uploads (Node v20 defaults to 5min request timeout)
+server.requestTimeout = 30 * 60 * 1000; // 30 minutes
+server.timeout = 30 * 60 * 1000;

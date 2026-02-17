@@ -52,7 +52,7 @@ async function transcodeVideoFromDisk(inputPath, outputPath, config, onProgress)
         // Keyframe every 2 seconds (at 30fps) for smooth seeking
         '-g 60',
         // Scale down if larger than max dimensions, preserve aspect ratio
-        `-vf scale='min(${config.VIDEO_MAX_WIDTH},iw)':min'(${config.VIDEO_MAX_HEIGHT},ih)':force_original_aspect_ratio=decrease`,
+        `-vf scale='min(${config.VIDEO_MAX_WIDTH},iw)':'min(${config.VIDEO_MAX_HEIGHT},ih)':force_original_aspect_ratio=decrease`,
       ])
       .audioCodec('aac')
       .audioBitrate('128k')
