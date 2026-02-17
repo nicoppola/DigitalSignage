@@ -18,4 +18,4 @@ sed -i 's/"exited_cleanly":false/"exited_cleanly":true/' ~/.config/chromium/'Loc
 sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"[^"]\+"/"exit_type":"Normal"/' ~/.config/chromium/Default/Preferences
 
 # Launch Chromium in kiosk mode
-chromium --use-gl-egl --enable-reatures=VaapiVideoDecoder --hide-scrollbars --noerrdialogs --no-memcheck --kiosk http://localhost:4000/viewer --incognito --disable-translate --no-first-run &
+chromium --use-gl=egl --enable-features=VaapiVideoDecoder --ignore-gpu-blocklist --enable-gpu-rasterization --hide-scrollbars --noerrdialogs --no-memcheck --kiosk http://localhost:4000/viewer --incognito --disable-translate --no-first-run &
