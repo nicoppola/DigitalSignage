@@ -44,6 +44,6 @@ module.exports = {
   VIDEO_CODEC: 'libx264',
   VIDEO_PRESET: 'ultrafast',  // fast encoding for Pi (larger file but quick)
   VIDEO_CRF: 23,              // quality (lower = better, 18-28 typical)
-  VIDEO_MAX_WIDTH: 1920,
-  VIDEO_MAX_HEIGHT: 1080,
+  VIDEO_MAX_WIDTH: 1280,
+  VIDEO_MAX_HEIGHT: 720,
 };
