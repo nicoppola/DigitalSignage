@@ -20,6 +20,15 @@ router.post('/self-update', async (req, res) => {
 
     await git.pull('origin', 'main');
 
+    // Update systemd service file and reload daemon
+    const projectRoot = path.join(__dirname, '..', '..');
+    const serviceFile = path.join(projectRoot, 'setup', 'digitalsignage-server.service');
+    exec(`sudo cp ${serviceFile} /etc/systemd/system/ && sudo systemctl daemon-reload`, (cpErr) => {
+      if (cpErr) {
+        console.warn('Could not update service file:', cpErr.message);
+      }
+    });
+
     exec('npm install', { cwd: path.join(__dirname, '..') }, (err, stdout, stderr) => {
       if (err) {
         console.error('npm install failed:', stderr);
