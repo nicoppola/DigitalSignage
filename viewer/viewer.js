@@ -54,6 +54,9 @@ function rotateMedia(side) {
   const media = state[side].media;
   if (media.length === 0) return;
 
+  // Don't rotate if fullscreen is active (fullscreen manages its own transitions)
+  if (fullscreenActive) return;
+
   // Don't rotate if a video is currently playing
   if (state[side].isPlayingVideo) return;
 
@@ -69,8 +72,8 @@ function rotateMedia(side) {
   // Remove active from current
   const currentEl = mediaElements[state[side].currentIndex];
 
-  // If next is fullscreen image, do a staged transition
-  if (nextIsFullscreen && nextEl && nextEl.tagName !== 'VIDEO') {
+  // If next is fullscreen, do a staged transition (for both images and videos)
+  if (nextIsFullscreen && nextEl) {
     const otherSide = side === SIDES.LEFT ? SIDES.RIGHT : SIDES.LEFT;
     const otherPanel = document.getElementById(`${otherSide}-side`);
 
@@ -79,6 +82,10 @@ function rotateMedia(side) {
       currentEl.classList.add('ended');
     }
     otherPanel.classList.add('hidden');
+
+    // Mark fullscreen immediately so callers know not to set timers
+    fullscreenActive = true;
+    fullscreenSide = side;
 
     // Pause timers now
     clearInterval(state[side].rotateTimer);
@@ -104,21 +111,29 @@ function rotateMedia(side) {
       // Advance index
       state[side].currentIndex = nextIndex;
 
-      // Now activate fullscreen mode (panel already hidden, just expand)
-      fullscreenActive = true;
-      fullscreenSide = side;
+      // Now expand to fullscreen (flag already set above)
       const activePanel = document.getElementById(`${side}-side`);
       activePanel.classList.add('fullscreen');
 
-      // Start image timer
-      fullscreenImageTimer = setTimeout(() => {
-        handleFullscreenImageEnded(side);
-      }, config[side].rotateIntervalSec * 1000);
-
-      // Fade in the fullscreen image
-      setTimeout(() => {
+      if (nextEl.tagName === 'VIDEO') {
+        // Fullscreen video - play it
         nextEl.classList.add('active');
-      }, 50);
+        nextEl.classList.remove('ended');
+        state[side].isPlayingVideo = true;
+        nextEl.play().catch(err => {
+          console.warn(`Could not autoplay video on ${side}:`, err);
+          state[side].isPlayingVideo = false;
+        });
+      } else {
+        // Fullscreen image - start timer and fade in
+        fullscreenImageTimer = setTimeout(() => {
+          handleFullscreenImageEnded(side);
+        }, config[side].rotateIntervalSec * 1000);
+
+        setTimeout(() => {
+          nextEl.classList.add('active');
+        }, 50);
+      }
 
       console.log(`[${side}] Rotating to fullscreen: ${nextFile}`);
     }, 300); // wait for both fades (0.3s is the longer one)
@@ -126,7 +141,7 @@ function rotateMedia(side) {
     return; // exit early, we handled everything
   }
 
-  // Normal flow for non-fullscreen or video
+  // Normal flow for non-fullscreen
   if (currentEl) {
     currentEl.classList.remove('active');
     if (currentEl.tagName === 'VIDEO') {
@@ -142,19 +157,12 @@ function rotateMedia(side) {
   const newEl = nextEl;
   const currentFile = nextFile;
   if (newEl) {
-    // Check if this media should be fullscreen
-    const shouldBeFullscreen = config[side].fullscreenMedia.includes(currentFile);
-    console.log(`[${side}] Rotating to: ${currentFile}, isVideo: ${newEl.tagName === 'VIDEO'}, shouldBeFullscreen: ${shouldBeFullscreen}, fullscreenMedia:`, config[side].fullscreenMedia);
+    console.log(`[${side}] Rotating to: ${currentFile}, isVideo: ${newEl.tagName === 'VIDEO'}`);
 
     if (newEl.tagName === 'VIDEO') {
       newEl.classList.add('active');
-      // Remove ended class from previous play
       newEl.classList.remove('ended');
       state[side].isPlayingVideo = true;
-
-      if (shouldBeFullscreen) {
-        activateFullscreen(side, false);
-      }
 
       newEl.play().catch(err => {
         console.warn(`Could not autoplay video on ${side}:`, err);
@@ -271,40 +279,56 @@ function handleFullscreenImageEnded(side) {
     const mediaElements = container.querySelectorAll('img, video');
     const newEl = mediaElements[state[side].currentIndex];
     const currentFile = media[state[side].currentIndex];
+    const shouldBeFullscreen = newEl ? config[side].fullscreenMedia.includes(currentFile) : false;
 
-    // Deactivate fullscreen and show new media at the same time
-    // so both panels fade in together
-    deactivateFullscreen();
-
-    if (newEl) {
-      newEl.classList.add('active');
-      newEl.classList.remove('ended');
-    }
-
-    // Handle video/fullscreen for next media
-    if (newEl) {
-      const shouldBeFullscreen = config[side].fullscreenMedia.includes(currentFile);
+    // If next is also fullscreen, stay in fullscreen mode
+    if (shouldBeFullscreen && newEl) {
       if (newEl.tagName === 'VIDEO') {
+        // Transition to fullscreen video (stay fullscreen)
+        newEl.classList.add('active');
         newEl.classList.remove('ended');
         state[side].isPlayingVideo = true;
-        if (shouldBeFullscreen) {
-          activateFullscreen(side, false);
-        }
         newEl.play().catch(err => {
           console.warn(`Could not autoplay video on ${side}:`, err);
           state[side].isPlayingVideo = false;
         });
-      } else if (shouldBeFullscreen) {
-        activateFullscreen(side, true);
+      } else {
+        // Transition to another fullscreen image (stay fullscreen)
+        fullscreenImageTimer = setTimeout(() => {
+          handleFullscreenImageEnded(side);
+        }, config[side].rotateIntervalSec * 1000);
+        setTimeout(() => {
+          newEl.classList.add('active');
+        }, 50);
       }
+      return; // stay fullscreen, no rotation timer needed
     }
 
-    // Reset the rotation timer so next media gets full duration
-    clearInterval(state[side].rotateTimer);
-    state[side].rotateTimer = setInterval(
-      () => rotateMedia(side),
-      config[side].rotateIntervalSec * 1000
-    );
+    // Exiting fullscreen - deactivate first, then show new media after transition
+    deactivateFullscreen();
+
+    // Small delay to let the panel resize before showing the new image
+    setTimeout(() => {
+      if (newEl) {
+        newEl.classList.add('active');
+        newEl.classList.remove('ended');
+
+        if (newEl.tagName === 'VIDEO') {
+          state[side].isPlayingVideo = true;
+          newEl.play().catch(err => {
+            console.warn(`Could not autoplay video on ${side}:`, err);
+            state[side].isPlayingVideo = false;
+          });
+        }
+      }
+
+      // Reset the rotation timer so next media gets full duration
+      clearInterval(state[side].rotateTimer);
+      state[side].rotateTimer = setInterval(
+        () => rotateMedia(side),
+        config[side].rotateIntervalSec * 1000
+      );
+    }, 50);
   }, 300); // wait for fade out to complete (0.3s)
 }
 
@@ -312,24 +336,71 @@ function handleFullscreenImageEnded(side) {
 function handleVideoEnded(side) {
   const wasFullscreen = fullscreenActive && fullscreenSide === side;
 
-  // If this was a fullscreen video, exit fullscreen first
+  state[side].isPlayingVideo = false;
+
   if (wasFullscreen) {
+    // Peek at next item to decide whether to stay fullscreen
+    const media = state[side].media;
+    const container = document.getElementById(`${side}-side`);
+    const mediaElements = container.querySelectorAll('img, video');
+    const nextIndex = (state[side].currentIndex + 1) % media.length;
+    const nextFile = media[nextIndex];
+    const nextEl = mediaElements[nextIndex];
+    const nextIsFullscreen = config[side].fullscreenMedia.includes(nextFile);
+
+    if (nextIsFullscreen && nextEl) {
+      // Next is also fullscreen - stay fullscreen, just swap media
+      const currentEl = mediaElements[state[side].currentIndex];
+      if (currentEl) {
+        currentEl.classList.remove('active');
+        currentEl.classList.add('ended');
+        if (currentEl.tagName === 'VIDEO') {
+          currentEl.pause();
+          currentEl.currentTime = 0;
+        }
+      }
+
+      state[side].currentIndex = nextIndex;
+
+      if (nextEl.tagName === 'VIDEO') {
+        nextEl.classList.add('active');
+        nextEl.classList.remove('ended');
+        state[side].isPlayingVideo = true;
+        nextEl.play().catch(err => {
+          console.warn(`Could not autoplay video on ${side}:`, err);
+          state[side].isPlayingVideo = false;
+        });
+      } else {
+        // Fullscreen image - start timer and fade in
+        fullscreenImageTimer = setTimeout(() => {
+          handleFullscreenImageEnded(side);
+        }, config[side].rotateIntervalSec * 1000);
+        setTimeout(() => {
+          nextEl.classList.add('active');
+        }, 50);
+      }
+      console.log(`[${side}] Staying fullscreen: ${nextFile}`);
+      return;
+    }
+
+    // Next is not fullscreen - exit fullscreen then rotate
     deactivateFullscreen();
   }
-
-  state[side].isPlayingVideo = false;
 
   // Small delay after fullscreen to let CSS transitions settle
   const rotateDelay = wasFullscreen ? 100 : 0;
   setTimeout(() => {
     rotateMedia(side);
 
-    // Reset the rotation timer so next image gets full duration
-    clearInterval(state[side].rotateTimer);
-    state[side].rotateTimer = setInterval(
-      () => rotateMedia(side),
-      config[side].rotateIntervalSec * 1000
-    );
+    // Only set rotation timer if rotateMedia didn't enter fullscreen mode
+    // (fullscreen manages its own timers)
+    if (!fullscreenActive) {
+      clearInterval(state[side].rotateTimer);
+      state[side].rotateTimer = setInterval(
+        () => rotateMedia(side),
+        config[side].rotateIntervalSec * 1000
+      );
+    }
   }, rotateDelay);
 }
 
