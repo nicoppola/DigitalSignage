@@ -382,7 +382,14 @@ async function renderMedia(side) {
       el.src = src;
       el.muted = true;  // Required for autoplay
       el.playsInline = true;
+      el.preload = 'auto';  // Preload full video for smoother playback
       el.addEventListener('ended', () => handleVideoEnded(side));
+      el.addEventListener('error', () => {
+        console.error(`[${side}] Video failed to load: ${file}`);
+        // Treat like video ended - move to next
+        state[side].isPlayingVideo = false;
+        handleVideoEnded(side);
+      });
       // Hide video before it ends to prevent first-frame flash
       // Use polling for more precise timing than timeupdate
       el.addEventListener('play', function() {

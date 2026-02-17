@@ -1,5 +1,6 @@
 const express = require('express');
 const session = require('express-session');
+const compression = require('compression');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
@@ -17,6 +18,7 @@ const app = express();
 const PORT = 4000;
 
 // Middleware
+app.use(compression({ level: 6, threshold: 1024 }));
 app.use(cors({
   origin: 'http://localhost:4000',
   credentials: true,
@@ -70,16 +72,16 @@ app.use('/', authRoutes);
 app.use('/config', requireLogin, configRoutes);
 app.use('/api', requireLogin, filesRoutes);
 app.use('/api', requireLogin, systemRoutes);
-app.use('/uploads', requireLogin, express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', requireLogin, express.static(path.join(__dirname, 'uploads'), { maxAge: '7d' }));
 
 // Viewer routes - serve static files from viewer directory
-app.use('/viewer', express.static(path.join(__dirname, '../viewer')));
+app.use('/viewer', express.static(path.join(__dirname, '../viewer'), { maxAge: '1d' }));
 app.get('/viewer', (req, res) => {
   res.sendFile(path.join(__dirname, '../viewer/viewer.html'));
 });
 
-// Serve React build
-app.use(express.static(path.join(__dirname, '../management-app', 'dist')));
+// Serve React build (cache JS/CSS assets)
+app.use(express.static(path.join(__dirname, '../management-app', 'dist'), { maxAge: '30d' }));
 
 // React SPA fallback
 app.get('/', (req, res) => {

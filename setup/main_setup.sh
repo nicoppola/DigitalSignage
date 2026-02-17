@@ -44,6 +44,9 @@ echo ""
 echo "Adding Ram to GPU...."
 ./add_ram_to_gpu.sh
 
+echo ""
+echo "Fixing ownership for $SUDO_USER..."
+chown -R "$SUDO_USER:$SUDO_USER" "$SCRIPT_DIR/.."
 
 echo "System will reboot in 5 seconds..."
 echo "ctrl c to stop"

@@ -44,11 +44,20 @@ async function transcodeVideoFromDisk(inputPath, outputPath, config, onProgress)
       .addOptions([
         `-preset ${config.VIDEO_PRESET}`,
         `-crf ${config.VIDEO_CRF}`,
+        // H.264 profile/level optimized for Pi hardware decoder
+        '-profile:v main',
+        '-level 4.1',
+        // Pixel format for hardware decoder compatibility
+        '-pix_fmt yuv420p',
+        // Keyframe every 2 seconds (at 30fps) for smooth seeking
+        '-g 60',
         // Scale down if larger than max dimensions, preserve aspect ratio
         `-vf scale='min(${config.VIDEO_MAX_WIDTH},iw)':min'(${config.VIDEO_MAX_HEIGHT},ih)':force_original_aspect_ratio=decrease`,
       ])
       .audioCodec('aac')
       .audioBitrate('128k')
+      // Move moov atom to start for instant playback
+      .outputOptions('-movflags +faststart')
       .format('mp4')
       .on('start', (cmd) => {
         console.log(`[FFmpeg] Starting transcode: ${cmd}`);

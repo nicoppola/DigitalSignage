@@ -272,6 +272,7 @@ router.delete('/files', async (req, res) => {
   if (!folder || !filename) return res.status(400).json({ error: 'Folder and filename required' });
 
   const filePath = path.join(UPLOADS_DIR, folder, filename);
+  const configPath = getConfigPath(folder);
 
   try {
     await fsp.unlink(filePath);
@@ -284,6 +285,37 @@ router.delete('/files', async (req, res) => {
       } catch (e) {
         // Thumbnail may not exist, ignore
       }
+    }
+
+    // Clean up config references to deleted file
+    try {
+      const configData = await fsp.readFile(configPath, 'utf8');
+      const config = JSON.parse(configData);
+      let configChanged = false;
+
+      // Remove from fullscreenMedia
+      if (config.fullscreenMedia && Array.isArray(config.fullscreenMedia)) {
+        const idx = config.fullscreenMedia.indexOf(filename);
+        if (idx !== -1) {
+          config.fullscreenMedia.splice(idx, 1);
+          configChanged = true;
+        }
+      }
+
+      // Remove from fileOrder
+      if (config.fileOrder && Array.isArray(config.fileOrder)) {
+        const idx = config.fileOrder.indexOf(filename);
+        if (idx !== -1) {
+          config.fileOrder.splice(idx, 1);
+          configChanged = true;
+        }
+      }
+
+      if (configChanged) {
+        await fsp.writeFile(configPath, JSON.stringify(config, null, 2));
+      }
+    } catch (e) {
+      // Config doesn't exist or couldn't be updated - not critical
     }
 
     res.json({ success: true });
