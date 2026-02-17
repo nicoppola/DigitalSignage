@@ -92,15 +92,19 @@ async function processVideo(file) {
   // Output to parent folder (not .processing)
   const finalDir = path.dirname(path.dirname(file.path));
   const outputPath = path.join(finalDir, outputFileName);
+  const tempOutputPath = outputPath + '.tmp';
   const thumbnailPath = path.join(finalDir, thumbnailFileName);
 
   // Track progress for this file
   setProgress(outputFileName, 0, 'transcoding');
 
-  // Transcode from temp file to final output (temp file is deleted by transcoder)
-  await transcodeVideoFromDisk(file.path, outputPath, mediaConfig, (percent) => {
+  // Transcode to .tmp file so incomplete videos don't appear in listings
+  await transcodeVideoFromDisk(file.path, tempOutputPath, mediaConfig, (percent) => {
     setProgress(outputFileName, percent, 'transcoding');
   });
+
+  // Move to final location (atomic on same filesystem)
+  await fsp.rename(tempOutputPath, outputPath);
 
   // Generate thumbnail from the transcoded video
   setProgress(outputFileName, 100, 'thumbnail');
@@ -217,8 +221,8 @@ router.get('/files', async (req, res) => {
 
     const fileChecks = await Promise.all(
       files.map(async (file) => {
-        // Skip .processing folder and thumbnail files
-        if (file === '.processing' || file.endsWith('.thumb.jpg')) return null;
+        // Skip .processing folder, thumbnail files, and temp transcoding files
+        if (file === '.processing' || file.endsWith('.thumb.jpg') || file.endsWith('.tmp')) return null;
         const fullPath = path.join(folderPath, file);
         const stat = await fsp.stat(fullPath);
         return stat.isFile() ? file : null;
