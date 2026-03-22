@@ -10,7 +10,7 @@ const DEFAULT_CONFIG = {
   rightRotateIntervalSec: 15,
   refreshIntervalSec: 60,
   configPollIntervalMs: 60 * 1000,
-  fadeMs: 300,
+  fadeMs: 800,
 };
 
 const config = {
