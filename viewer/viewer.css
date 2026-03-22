@@ -33,62 +33,69 @@ body {
   transition: opacity 0.3s ease-in-out;
 }
 
-.panel img,
-.panel video {
-  width: 100%;
-  max-width: 100%;
-  height: auto;
-  object-fit: contain;
-  margin-bottom: 10px;
+/* Fade out panels when entering fullscreen */
+.panel.fading-out {
+  opacity: 0;
+}
+
+/* Slots hold individual media elements (double-buffer: a and b) */
+.slot {
   position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   opacity: 0;
   transition: opacity 0.3s ease-in-out;
 }
 
-.panel img.active,
-.panel video.active {
+.slot.active {
   opacity: 1;
 }
 
-/* Fade out when media ends (synced with panel transitions) */
-.panel video.ended,
-.panel img.ended {
+/* Fade out slot before swap */
+.slot.ended {
   opacity: 0 !important;
   transition: opacity 0.3s ease-out !important;
+}
+
+/* Media fills its slot */
+.slot img,
+.slot video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Fullscreen overlay sits on top of both panels */
+#fullscreen-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background-color: black;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease-in-out;
+}
+
+#fullscreen-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#fullscreen-overlay .slot {
+  position: absolute;
+  inset: 0;
+}
+
+#fullscreen-overlay .slot img,
+#fullscreen-overlay .slot video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .message {
   color: gray;
   margin-top: 20px;
-}
-
-/* Fullscreen media mode */
-.panel.fullscreen {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 10;
-  padding: 0;
-}
-
-.panel.fullscreen video.active,
-.panel.fullscreen img.active {
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  margin: 0;
-}
-
-/* Non-active media in fullscreen panel stays at opacity 0 (from base rule) */
-/* No display:none here - that would prevent fade-in transitions */
-
-.panel.hidden {
-  opacity: 0;
-  pointer-events: none;
 }
