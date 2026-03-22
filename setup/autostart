@@ -39,8 +39,9 @@ fi
 
 echo "Chromium version: ${CHROMIUM_VERSION:-unknown}, using decode flag: $VIDEO_DECODE_FLAG"
 
-# Launch Chromium in kiosk mode with hardware-accelerated video decode
-chromium \
+# Launch Chromium at lower CPU priority so SSH and the Node server remain responsive
+# nice 10 = below-normal priority; the kernel will prefer SSH/sshd over Chromium
+nice -n 10 chromium \
   --use-gl=egl \
   --enable-features=$VIDEO_DECODE_FLAG \
   --enable-accelerated-video-decode \
