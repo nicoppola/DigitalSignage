@@ -206,6 +206,9 @@ async function rotateMedia(side) {
 
   await loadMediaIntoSlot(nextSlotEl, nextFile, side);
 
+  // Wait for the browser to paint the new image before starting the transition
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
   // Crossfade: activate new slot, deactivate old
   nextSlotEl.classList.remove('ended');
   nextSlotEl.classList.add('active');
