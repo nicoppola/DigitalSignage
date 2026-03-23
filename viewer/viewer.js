@@ -275,23 +275,17 @@ async function enterFullscreen(side, mediaIndex) {
     otherVideo.pause();
   }
 
-  // Fade out both panels simultaneously
-  const leftPanel = document.getElementById('left-side');
-  const rightPanel = document.getElementById('right-side');
-  leftPanel.classList.add('fading-out');
-  rightPanel.classList.add('fading-out');
-
-  // Load media into fullscreen overlay slot while panels are fading
+  // Load media into fullscreen overlay slot
   const fsSlotEl = getFsSlotEl(fullscreenActiveSlot);
   await loadMediaIntoFsSlot(fsSlotEl, filename, side);
 
-  // Show fullscreen overlay and slot immediately — crossfade overlaps with panel fade-out
+  // Fade in overlay on top of panels (overlay has black bg, covers everything)
   const overlay = document.getElementById('fullscreen-overlay');
-  overlay.classList.add('active');
   fsSlotEl.classList.remove('ended');
   fsSlotEl.classList.add('active');
+  overlay.classList.add('active');
 
-  // Wait for transition to complete before starting playback
+  // Wait for fade to complete
   await delay(DEFAULT_CONFIG.fadeMs);
 
   // Play video or set image timer
@@ -397,16 +391,10 @@ async function exitFullscreen() {
     }
   }
 
-  // Fade out overlay AND fade in panels simultaneously — no black gap
+  // Fade out overlay — panels are already visible underneath
   const activeFsSlotEl = getFsSlotEl(fullscreenActiveSlot);
   const overlay = document.getElementById('fullscreen-overlay');
-  const leftPanel = document.getElementById('left-side');
-  const rightPanel = document.getElementById('right-side');
-
-  activeFsSlotEl.classList.add('ended');
   overlay.classList.remove('active');
-  leftPanel.classList.remove('fading-out');
-  rightPanel.classList.remove('fading-out');
 
   // Wait for crossfade to complete
   await delay(DEFAULT_CONFIG.fadeMs);
