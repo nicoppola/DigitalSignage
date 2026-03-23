@@ -35,7 +35,16 @@ router.post('/', async (req, res) => {
   const configPath = getConfigPath(side);
 
   try {
-    await fsp.writeFile(configPath, JSON.stringify(config, null, 2));
+    // Merge with existing config so partial updates don't erase other fields
+    let existing = {};
+    try {
+      const data = await fsp.readFile(configPath, 'utf8');
+      existing = JSON.parse(data);
+    } catch (e) {
+      // File doesn't exist yet, start fresh
+    }
+    const merged = { ...existing, ...config };
+    await fsp.writeFile(configPath, JSON.stringify(merged, null, 2));
     res.json({ status: 'ok' });
   } catch (err) {
     console.error('Error saving config:', err);
