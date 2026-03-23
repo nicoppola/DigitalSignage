@@ -192,7 +192,7 @@ const ImageUploader = ({
     setIsUploading(true);
     setCurrentIndex(0);
 
-    let hasErrors = false;
+    const failedIndices = new Set<number>();
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -214,7 +214,7 @@ const ImageUploader = ({
         });
       } catch (err: unknown) {
         logger.error(`Upload failed for ${file.name}`, err);
-        hasErrors = true;
+        failedIndices.add(i);
 
         // Parse error message
         let errorMsg = "Upload failed";
@@ -251,19 +251,29 @@ const ImageUploader = ({
     setCurrentIndex(null);
     setProgress(0);
 
-    // If no errors, clear everything and call onUploadComplete
-    if (!hasErrors) {
+    if (failedIndices.size === 0) {
+      // All succeeded — clear everything
       previewUrls.forEach((url) => URL.revokeObjectURL(url));
       setFiles([]);
       setPreviewUrls([]);
       setFileStatus([]);
       setFileErrors([]);
       previewUrlsRef.current = [];
-      onUploadComplete();
     } else {
-      // Keep failed files visible, call onUploadComplete for successful ones
-      onUploadComplete();
+      // Remove successful files, keep only failed ones
+      setFiles(prev => prev.filter((_, i) => failedIndices.has(i)));
+      setPreviewUrls(prev => {
+        prev.forEach((url, i) => {
+          if (!failedIndices.has(i) && url) URL.revokeObjectURL(url);
+        });
+        const kept = prev.filter((_, i) => failedIndices.has(i));
+        previewUrlsRef.current = kept;
+        return kept;
+      });
+      setFileStatus(prev => prev.filter((_, i) => failedIndices.has(i)));
+      setFileErrors(prev => prev.filter((_, i) => failedIndices.has(i)));
     }
+    onUploadComplete();
   };
 
   const uploadSingleFile = async (file: File, folderName: string): Promise<void> => {
