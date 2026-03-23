@@ -213,13 +213,16 @@ async function rotateMedia(side) {
   st.currentIndex = nextIndex;
   st.activeSlot = nextSlotId;
 
-  // Fade through black: fade out old, tiny black gap, then fade in new
-  currentSlotEl.classList.remove('active');
-  await delay(DEFAULT_CONFIG.fadeMs);
-  clearSlot(currentSlotEl);
-  currentSlotEl.classList.remove('ended');
+  // Crossfade: new fades in on top of old simultaneously
   nextSlotEl.classList.remove('ended');
   nextSlotEl.classList.add('active');
+  currentSlotEl.classList.remove('active');
+
+  // Clean up old slot after fade completes
+  setTimeout(() => {
+    clearSlot(currentSlotEl);
+    currentSlotEl.classList.remove('ended');
+  }, DEFAULT_CONFIG.fadeMs + 50);
 
   // If new media is video, play it
   const videoEl = nextSlotEl.querySelector('video');
