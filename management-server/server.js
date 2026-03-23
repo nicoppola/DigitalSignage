@@ -16,6 +16,7 @@ const systemRoutes = require('./routes/system');
 
 const app = express();
 const PORT = 4000;
+const SERVER_START_ID = Date.now().toString();
 
 // Middleware
 app.use(compression({ level: 6, threshold: 1024 }));
@@ -91,6 +92,9 @@ function requireLogin(req, res, next) {
   console.log(`-- Auth Failed ${clientIp} --`);
   res.status(401).json({ error: 'Unauthorized' });
 }
+
+// Server ID endpoint — viewer polls this to detect restarts and reload
+app.get('/api/server-id', (req, res) => res.json({ id: SERVER_START_ID }));
 
 // Public routes (no auth required)
 app.use('/', authRoutes);

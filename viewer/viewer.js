@@ -215,7 +215,7 @@ async function rotateMedia(side) {
 
   // Fade through black: fade out old, tiny black gap, then fade in new
   currentSlotEl.classList.remove('active');
-  await delay(DEFAULT_CONFIG.fadeMs + 30);
+  await delay(DEFAULT_CONFIG.fadeMs);
   clearSlot(currentSlotEl);
   currentSlotEl.classList.remove('ended');
   nextSlotEl.classList.remove('ended');
@@ -601,6 +601,26 @@ async function startSide(side) {
 
   updateTimers(side);
 }
+
+// Detect server restart and reload the page
+let serverStartId = null;
+async function watchForRestart() {
+  try {
+    const res = await fetch('/api/server-id');
+    if (res.ok) {
+      const data = await res.json();
+      if (serverStartId === null) {
+        serverStartId = data.id;
+      } else if (data.id !== serverStartId) {
+        console.log('Server restarted, reloading viewer...');
+        location.reload();
+      }
+    }
+  } catch {
+    // Server is down (restarting) — ignore, will catch it next poll
+  }
+}
+setInterval(watchForRestart, 5000);
 
 // Load everything
 async function init() {
