@@ -111,19 +111,11 @@ app.get('/viewer', (req, res) => {
   res.sendFile(path.join(__dirname, '../viewer/viewer.html'));
 });
 
-// Serve React build — cache hashed JS/CSS assets, but never cache index.html
-app.use(express.static(path.join(__dirname, '../management-app', 'dist'), {
-  maxAge: '30d',
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'no-cache');
-    }
-  },
-}));
+// Serve React build (cache JS/CSS assets)
+app.use(express.static(path.join(__dirname, '../management-app', 'dist'), { maxAge: '30d' }));
 
 // React SPA fallback
 app.get('/', (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(path.join(__dirname, '../management-app', 'dist', 'index.html'));
 });
 

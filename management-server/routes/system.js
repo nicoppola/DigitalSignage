@@ -29,31 +29,18 @@ router.post('/self-update', async (req, res) => {
       }
     });
 
-    const serverDir = path.join(__dirname, '..');
-    const appDir = path.join(__dirname, '..', '..', 'management-app');
-
-    exec('npm install', { cwd: serverDir }, (err, stdout, stderr) => {
+    exec('npm install', { cwd: path.join(__dirname, '..') }, (err, stdout, stderr) => {
       if (err) {
-        console.error('npm install (server) failed:', stderr);
+        console.error('npm install failed:', stderr);
         return res.status(500).json({ error: 'npm install failed' });
       }
+
       console.log(stdout);
+      res.json({ updated: true, message: 'Updated successfully, rebooting server... \nRefresh page after a few seconds' });
 
-      // Rebuild management app so frontend changes take effect
-      exec('npm install && npm run build', { cwd: appDir }, (err2, stdout2, stderr2) => {
-        if (err2) {
-          console.error('Management app build failed:', stderr2);
-          // Still restart — server-side changes should apply
-        } else {
-          console.log(stdout2);
-        }
-
-        res.json({ updated: true, message: 'Updated successfully, rebooting server... \nRefresh page after a few seconds' });
-
-        setTimeout(() => {
-          process.exit(0);
-        }, 1000);
-      });
+      setTimeout(() => {
+        process.exit(0);
+      }, 1000);
     });
 
   } catch (err) {
