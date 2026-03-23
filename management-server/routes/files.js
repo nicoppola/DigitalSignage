@@ -158,10 +158,12 @@ router.post('/upload', (req, res, next) => {
     return res.status(400).json({ error: 'No files uploaded' });
   }
 
-  try {
-    // Process files sequentially to avoid overloading Pi CPU
-    const processedFiles = [];
-    for (const file of req.files) {
+  // Process files sequentially to avoid overloading Pi CPU
+  const processedFiles = [];
+  const failedFiles = [];
+
+  for (const file of req.files) {
+    try {
       if (isVideo(file.mimetype)) {
         processedFiles.push(await processVideo(file));
       } else if (isImage(file.mimetype)) {
@@ -169,15 +171,36 @@ router.post('/upload', (req, res, next) => {
       } else {
         throw new Error(`Unsupported file type: ${file.mimetype}`);
       }
+    } catch (err) {
+      const originalName = sanitizeFilename(file.originalname);
+      console.error(`Media processing failed for ${originalName}:`, err.message);
+      failedFiles.push({ name: originalName, error: err.message });
+      // Clean up the temp file for the failed upload
+      try {
+        await fsp.unlink(file.path);
+      } catch (e) {
+        // Already cleaned up
+      }
     }
+  }
 
+  if (failedFiles.length === 0) {
     res.json({
       message: 'Files uploaded and processed successfully',
-      files: processedFiles
+      files: processedFiles,
     });
-  } catch (err) {
-    console.error('Media processing failed:', err);
-    res.status(500).json({ error: 'Failed to process media files' });
+  } else if (processedFiles.length === 0) {
+    res.status(500).json({
+      error: 'All files failed to process',
+      files: processedFiles,
+      failed: failedFiles,
+    });
+  } else {
+    res.status(207).json({
+      message: `${processedFiles.length} file(s) processed, ${failedFiles.length} failed`,
+      files: processedFiles,
+      failed: failedFiles,
+    });
   }
 });
 
