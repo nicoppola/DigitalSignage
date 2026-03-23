@@ -45,6 +45,10 @@ echo "Adding Ram to GPU...."
 ./add_ram_to_gpu.sh
 
 echo ""
+echo "Forcing 1080p HDMI Output...."
+./setup_resolution.sh
+
+echo ""
 echo "Fixing ownership for $SUDO_USER..."
 chown -R "$SUDO_USER:$SUDO_USER" "$SCRIPT_DIR/.."
 

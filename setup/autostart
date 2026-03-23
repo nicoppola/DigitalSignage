@@ -15,6 +15,10 @@ unclutter &
 # Wait for X to be ready
 sleep 5
 
+# Force 1080p output (Pi 4 may default to 4K which kills compositor performance)
+xrandr --output HDMI-1 --mode 1920x1080 --rate 60 2>/dev/null || \
+  xrandr --output HDMI-A-1 --mode 1920x1080 --rate 60 2>/dev/null || true
+
 # Suppress Chromium "unclean exit" warnings
 sed -i 's/"exited_cleanly":false/"exited_cleanly":true/' ~/.config/chromium/'Local State'
 sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"[^"]\+"/"exit_type":"Normal"/' ~/.config/chromium/Default/Preferences
