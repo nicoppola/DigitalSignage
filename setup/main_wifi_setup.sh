@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Replace these with your Wi-Fi credentials
-SSID="ENTER_YOUR_SSID_HERE"
-PASSWORD="ENTER_YOUR_PASSWORD_HERE"
+read -p "Enter Wi-Fi SSID: " SSID
+read -sp "Enter Wi-Fi password: " PASSWORD
+echo
 CON_NAME="wifi_auto"
 
 # Check if connection already exists
