@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ "$EUID" -ne 0 ]; then
+    echo "This script requires root privileges. Run with: sudo bash $0"
+    exit 1
+fi
+
 read -p "Enter Wi-Fi SSID: " SSID
 read -sp "Enter Wi-Fi password: " PASSWORD
 echo
