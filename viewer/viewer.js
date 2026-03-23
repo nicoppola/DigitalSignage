@@ -140,7 +140,7 @@ function loadMediaIntoFsSlot(slotEl, filename, side) {
   });
 }
 
-// Set up video end detection — pauses video before natural end to prevent first-frame flash
+// Set up video end detection — preloads next media and crossfades smoothly
 function setupVideoEndDetection(video, onEnded) {
   let ended = false;
 
@@ -150,15 +150,7 @@ function setupVideoEndDetection(video, onEnded) {
     if (timeLeft < 0.3 && timeLeft > 0) {
       ended = true;
       video.pause(); // Freeze on current frame — prevents first-frame flash
-
-      // Find the parent slot and fade it out
-      const slot = video.closest('.slot');
-      if (slot) {
-        slot.classList.add('ended');
-      }
-
-      // After fade completes, trigger the ended handler
-      setTimeout(() => onEnded(), DEFAULT_CONFIG.fadeMs);
+      onEnded();
       return;
     }
     requestAnimationFrame(checkEnd);
