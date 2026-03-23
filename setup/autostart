@@ -51,6 +51,9 @@ chromium \
   --ignore-gpu-blocklist \
   --enable-gpu-rasterization \
   --disable-features=UseChromeOSDirectVideoDecoder \
+  --disable-smooth-scrolling \
+  --disable-backgrounding-occluded-windows \
+  --autoplay-policy=no-user-gesture-required \
   --hide-scrollbars \
   --noerrdialogs \
   --kiosk http://localhost:4000/viewer \

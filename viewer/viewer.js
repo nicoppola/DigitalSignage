@@ -104,7 +104,7 @@ function loadMediaIntoSlot(slotEl, filename, side) {
     } else {
       const img = document.createElement('img');
       img.src = src;
-      img.onload = () => resolve(img);
+      img.onload = () => img.decode().then(() => resolve(img)).catch(() => resolve(img));
       img.onerror = () => resolve(img);
       slotEl.appendChild(img);
     }
@@ -133,7 +133,7 @@ function loadMediaIntoFsSlot(slotEl, filename, side) {
     } else {
       const img = document.createElement('img');
       img.src = src;
-      img.onload = () => resolve(img);
+      img.onload = () => img.decode().then(() => resolve(img)).catch(() => resolve(img));
       img.onerror = () => resolve(img);
       slotEl.appendChild(img);
     }
