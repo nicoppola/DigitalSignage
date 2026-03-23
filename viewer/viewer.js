@@ -209,14 +209,31 @@ async function rotateMedia(side) {
   // Wait for the browser to paint the new image before starting the transition
   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-  // Crossfade: activate new slot, deactivate old
-  nextSlotEl.classList.remove('ended');
-  nextSlotEl.classList.add('active');
-  currentSlotEl.classList.remove('active');
-
   // Update state
   st.currentIndex = nextIndex;
   st.activeSlot = nextSlotId;
+
+  if (side === SIDES.LEFT) {
+    // Fade through black: fade out old, brief black, then fade in new
+    currentSlotEl.classList.remove('active');
+    await delay(DEFAULT_CONFIG.fadeMs + 100);
+    clearSlot(currentSlotEl);
+    currentSlotEl.classList.remove('ended');
+    nextSlotEl.classList.remove('ended');
+    nextSlotEl.classList.add('active');
+  } else {
+    // Staggered crossfade: old fades out fast, new fades in at normal speed
+    nextSlotEl.classList.remove('ended');
+    currentSlotEl.style.transition = 'opacity 0.25s ease-out';
+    currentSlotEl.classList.remove('active');
+    await delay(150);
+    nextSlotEl.classList.add('active');
+    setTimeout(() => {
+      clearSlot(currentSlotEl);
+      currentSlotEl.classList.remove('ended');
+      currentSlotEl.style.transition = '';
+    }, DEFAULT_CONFIG.fadeMs + 50);
+  }
 
   // If new media is video, play it
   const videoEl = nextSlotEl.querySelector('video');
@@ -228,12 +245,6 @@ async function rotateMedia(side) {
       st.isPlayingVideo = false;
     });
   }
-
-  // Clean up old slot after fade completes to free memory
-  setTimeout(() => {
-    clearSlot(currentSlotEl);
-    currentSlotEl.classList.remove('ended');
-  }, DEFAULT_CONFIG.fadeMs + 50);
 
   console.log(`[${side}] Rotated to: ${nextFile}`);
 }
@@ -578,6 +589,12 @@ async function startSide(side) {
   state[side].mediaList = media;
 
   if (media.length > 0) {
+    // Check if first item should be fullscreen
+    if (config[side].fullscreenMedia.includes(media[0])) {
+      enterFullscreen(side, 0);
+      return;
+    }
+
     // Load first media into slot-a
     const slotEl = getSlotEl(side, 'a');
     await loadMediaIntoSlot(slotEl, media[0], side);
