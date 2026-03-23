@@ -213,27 +213,13 @@ async function rotateMedia(side) {
   st.currentIndex = nextIndex;
   st.activeSlot = nextSlotId;
 
-  if (side === SIDES.LEFT) {
-    // Fade through black: fade out old, brief black, then fade in new
-    currentSlotEl.classList.remove('active');
-    await delay(DEFAULT_CONFIG.fadeMs + 100);
-    clearSlot(currentSlotEl);
-    currentSlotEl.classList.remove('ended');
-    nextSlotEl.classList.remove('ended');
-    nextSlotEl.classList.add('active');
-  } else {
-    // Staggered crossfade: old fades out fast, new fades in at normal speed
-    nextSlotEl.classList.remove('ended');
-    currentSlotEl.style.transition = 'opacity 0.25s ease-out';
-    currentSlotEl.classList.remove('active');
-    await delay(150);
-    nextSlotEl.classList.add('active');
-    setTimeout(() => {
-      clearSlot(currentSlotEl);
-      currentSlotEl.classList.remove('ended');
-      currentSlotEl.style.transition = '';
-    }, DEFAULT_CONFIG.fadeMs + 50);
-  }
+  // Fade through black: fade out old, tiny black gap, then fade in new
+  currentSlotEl.classList.remove('active');
+  await delay(DEFAULT_CONFIG.fadeMs + 30);
+  clearSlot(currentSlotEl);
+  currentSlotEl.classList.remove('ended');
+  nextSlotEl.classList.remove('ended');
+  nextSlotEl.classList.add('active');
 
   // If new media is video, play it
   const videoEl = nextSlotEl.querySelector('video');
