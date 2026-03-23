@@ -10,7 +10,7 @@ const DEFAULT_CONFIG = {
   rightRotateIntervalSec: 15,
   refreshIntervalSec: 60,
   configPollIntervalMs: 60 * 1000,
-  fadeMs: 800,
+  fadeMs: 500,
 };
 
 const config = {
@@ -285,14 +285,14 @@ async function enterFullscreen(side, mediaIndex) {
   const fsSlotEl = getFsSlotEl(fullscreenActiveSlot);
   await loadMediaIntoFsSlot(fsSlotEl, filename, side);
 
-  // Wait for panel fade-out to complete
-  await delay(DEFAULT_CONFIG.fadeMs);
-
-  // Show fullscreen overlay and activate the slot
+  // Show fullscreen overlay and slot immediately — crossfade overlaps with panel fade-out
   const overlay = document.getElementById('fullscreen-overlay');
   overlay.classList.add('active');
   fsSlotEl.classList.remove('ended');
   fsSlotEl.classList.add('active');
+
+  // Wait for transition to complete before starting playback
+  await delay(DEFAULT_CONFIG.fadeMs);
 
   // Play video or set image timer
   const videoEl = fsSlotEl.querySelector('video');
@@ -379,31 +379,46 @@ async function exitFullscreen() {
   const side = fullscreenSide;
   const otherSide = side === SIDES.LEFT ? SIDES.RIGHT : SIDES.LEFT;
 
-  // Fade out the active fullscreen slot
-  const activeFsSlotEl = getFsSlotEl(fullscreenActiveSlot);
-  activeFsSlotEl.classList.add('ended');
-
-  // Wait for fade-out
-  await delay(DEFAULT_CONFIG.fadeMs);
-
-  // Hide overlay
-  const overlay = document.getElementById('fullscreen-overlay');
-  overlay.classList.remove('active');
-  activeFsSlotEl.classList.remove('active', 'ended');
-  clearSlot(activeFsSlotEl);
-
-  // Reset fullscreen slot tracking
-  fullscreenActiveSlot = 'a';
-
-  // Load next media for the fullscreen side into its active panel slot
+  // Load next media for the fullscreen side into its active panel slot (while overlay still visible)
   const nextFile = state[side].mediaList[state[side].currentIndex];
   if (nextFile) {
     const sideSlotEl = getSlotEl(side, state[side].activeSlot);
     await loadMediaIntoSlot(sideSlotEl, nextFile, side);
     sideSlotEl.classList.remove('ended');
     sideSlotEl.classList.add('active');
+  }
 
-    // If it's a video, play it
+  // Resume other side's video if it was paused
+  if (state[otherSide].pausedVideoTime !== null) {
+    const otherSlotEl = getSlotEl(otherSide, state[otherSide].activeSlot);
+    const otherVideo = otherSlotEl.querySelector('video');
+    if (otherVideo) {
+      otherVideo.currentTime = state[otherSide].pausedVideoTime;
+    }
+  }
+
+  // Fade out overlay AND fade in panels simultaneously — no black gap
+  const activeFsSlotEl = getFsSlotEl(fullscreenActiveSlot);
+  const overlay = document.getElementById('fullscreen-overlay');
+  const leftPanel = document.getElementById('left-side');
+  const rightPanel = document.getElementById('right-side');
+
+  activeFsSlotEl.classList.add('ended');
+  overlay.classList.remove('active');
+  leftPanel.classList.remove('fading-out');
+  rightPanel.classList.remove('fading-out');
+
+  // Wait for crossfade to complete
+  await delay(DEFAULT_CONFIG.fadeMs);
+
+  // Clean up overlay
+  activeFsSlotEl.classList.remove('active', 'ended');
+  clearSlot(activeFsSlotEl);
+  fullscreenActiveSlot = 'a';
+
+  // Start video playback after panels are visible
+  if (nextFile) {
+    const sideSlotEl = getSlotEl(side, state[side].activeSlot);
     const videoEl = sideSlotEl.querySelector('video');
     if (videoEl) {
       state[side].isPlayingVideo = true;
@@ -415,12 +430,11 @@ async function exitFullscreen() {
     }
   }
 
-  // Resume other side's video if it was paused
+  // Resume other side's video
   if (state[otherSide].pausedVideoTime !== null) {
     const otherSlotEl = getSlotEl(otherSide, state[otherSide].activeSlot);
     const otherVideo = otherSlotEl.querySelector('video');
     if (otherVideo) {
-      otherVideo.currentTime = state[otherSide].pausedVideoTime;
       state[otherSide].isPlayingVideo = true;
       setupVideoEndDetection(otherVideo, () => handleVideoEnded(otherSide));
       otherVideo.play().catch(err => {
@@ -430,12 +444,6 @@ async function exitFullscreen() {
     }
     state[otherSide].pausedVideoTime = null;
   }
-
-  // Fade in both panels simultaneously
-  const leftPanel = document.getElementById('left-side');
-  const rightPanel = document.getElementById('right-side');
-  leftPanel.classList.remove('fading-out');
-  rightPanel.classList.remove('fading-out');
 
   // Clear fullscreen state
   fullscreenActive = false;
